@@ -6,6 +6,7 @@
 
 // Globales
 bool is_running = false;
+bool is_fullscreen = false;
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
 int window_width = 800;
@@ -24,6 +25,15 @@ bool initialize_window(void)
         // Debug en el buffer de errores
         fprintf(stderr, "Error initializing SDL.\n");
         return false;
+    }
+
+    // Establecemos ancho y alto de la ventana SDL a la resolución máxima de la pantalla
+    if (is_fullscreen)
+    {
+        SDL_DisplayMode display_mode;
+        SDL_GetCurrentDisplayMode(0, &display_mode);
+        window_width = display_mode.w;
+        window_height = display_mode.h;
     }
 
     // Crear ventana SDL
@@ -87,6 +97,53 @@ void update(void)
     // TODO:
 }
 
+void draw_grid(void)
+{
+    // Dibujar una cuadrícula que rellena el espacio
+    // Las líneas deben concordar con las filas y columnas múltiples de 10
+
+    // Forma con condicionales
+    // for (int y = 0; y < window_height; y++)
+    // {
+    //     for (int x = 0; x < window_width; x++)
+    //     {
+    //         if (x % 10 == 0 || y % 10 == 0)
+    //             color_buffer[(window_width * y) + x] = 0xFF333333;
+    //     }
+    // }
+
+    // Forma alternativa
+    for (int y = 0; y < window_height; y += 10)
+    {
+        for (int x = 0; x < window_width; x += 10)
+        {
+            if (x != 0 && y != 0) // Esto esconde la primera fila y columna
+                color_buffer[(window_width * y) + x] = 0xFF333333;
+        }
+    }
+
+    // Forma sin condicionales con offset
+    //int offset = 10;
+
+    // Draw Horizontal Lines
+    // for (int y = offset / 2; y < window_height; y += offset)
+    // {
+    //     for (int x = 0; x < window_width; x += 1)
+    //     {
+    //         color_buffer[(window_width * y) + x] = 0xFF333333;
+    //     }
+    // }
+
+    // // Draw Vertical Lines
+    // for (int y = 0; y < window_height; y += 1)
+    // {
+    //     for (int x = offset / 2; x < window_width; x += offset)
+    //     {
+    //         color_buffer[(window_width * y) + x] = 0xFF333333;
+    //     }
+    // }
+}
+
 void clear_color_buffer(uint32_t color)
 {
     for (int y = 0; y < window_height; y++)
@@ -115,9 +172,12 @@ void render(void)
     SDL_SetRenderDrawColor(renderer, 150, 150, 0, 255);
     SDL_RenderClear(renderer);
 
+    // Dibujamos la cuadrícula
+    draw_grid();
+
     // Copiamos el color buffer a la textura y lo limpiamos
     render_color_buffer();
-    clear_color_buffer(0xFFFFFF00);
+    clear_color_buffer(0xFF000000);
 
     SDL_RenderPresent(renderer);
 }
