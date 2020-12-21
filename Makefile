@@ -7,8 +7,8 @@ build:
 	-Wfatal-errors \
 	-std=c99 \
 	./src/*.c \
-	-I"C:\MinGW\libsdl\include" \
-	-L"C:\MinGW\libsdl\lib" \
+	-I"C:/MinGW/libsdl/include" \
+	-L"C:/MinGW/libsdl/lib" \
 	-lmingw32 \
 	-lSDL2main \
 	-lSDL2 \

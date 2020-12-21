@@ -1,17 +1,152 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <SDL2/SDL.h>
 
-int main(int argc, char *args[])
+// Globales
+bool is_running = false;
+SDL_Window *window = NULL;
+SDL_Renderer *renderer = NULL;
+int window_width = 800;
+int window_height = 600;
+
+// Puntero para array uint32 (32 bits / 4 bytes por entero garantizados)
+uint32_t *color_buffer = NULL;
+
+// Textura SDL utilizada para mostrar en el color buffer
+SDL_Texture *color_buffer_texture = NULL;
+
+bool initialize_window(void)
 {
-    SDL_Init(SDL_INIT_EVERYTHING);
-    SDL_Quit();
-    printf("SDL loaded!");
-    return 0;
+    if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
+    {
+        // Debug en el buffer de errores
+        fprintf(stderr, "Error initializing SDL.\n");
+        return false;
+    }
+
+    // Crear ventana SDL
+    window = SDL_CreateWindow(
+        NULL,
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        window_width, window_height,
+        SDL_WINDOW_BORDERLESS);
+
+    if (!window)
+    {
+        fprintf(stderr, "Error creating SDL window.\n");
+        return false;
+    }
+
+    // Crear renderer SDL
+    renderer = SDL_CreateRenderer(window, -1, 0); // -1 primer output disponible
+
+    if (!renderer)
+    {
+        fprintf(stderr, "Error creating SDL renderer.\n");
+        return false;
+    }
+
+    return true;
 }
 
-// #include <stdio.h>
+void setup(void)
+{
+    // Asigno bytes requeridos en memoria para el color buffer
+    color_buffer = (uint32_t *)malloc(sizeof(uint32_t) * window_width * window_height);
 
-// int main()
-// {
-//     printf("Hello, world!");
-//     return 0;
-// }
+    // Creo la textura donde copiaremos el color buffer
+    color_buffer_texture = SDL_CreateTexture(
+        renderer,
+        SDL_PIXELFORMAT_ARGB8888,
+        SDL_TEXTUREACCESS_STREAMING,
+        window_width, window_height);
+}
+
+void process_input(void)
+{
+    SDL_Event event;
+    SDL_PollEvent(&event);
+
+    switch (event.type)
+    {
+    case SDL_QUIT:
+        is_running = false;
+        break;
+    case SDL_KEYDOWN:
+        if (event.key.keysym.sym == SDLK_ESCAPE)
+            is_running = false;
+        break;
+    }
+}
+
+void update(void)
+{
+    // TODO:
+}
+
+void clear_color_buffer(uint32_t color)
+{
+    for (int y = 0; y < window_height; y++)
+    {
+        for (int x = 0; x < window_width; x++)
+        {
+            color_buffer[(window_width * y) + x] = color;
+        }
+    }
+}
+
+// Renderiza el array color buffer en la textura y la muestra
+void render_color_buffer()
+{
+    SDL_UpdateTexture(
+        color_buffer_texture,
+        NULL, // https://wiki.libsdl.org/SDL_Rect
+        color_buffer,
+        (int)(window_width * sizeof(uint32_t)));
+
+    SDL_RenderCopy(renderer, color_buffer_texture, NULL, NULL);
+}
+
+void render(void)
+{
+    SDL_SetRenderDrawColor(renderer, 150, 150, 0, 255);
+    SDL_RenderClear(renderer);
+
+    // Copiamos el color buffer a la textura y lo limpiamos
+    render_color_buffer();
+    clear_color_buffer(0xFFFFFF00);
+
+    SDL_RenderPresent(renderer);
+}
+
+void destroy_window(void)
+{
+    // El array sabe cuantos elementos lo forman, aqui liberamos la memoria
+    free(color_buffer);
+
+    // C no tiene recolector de basura... tenemos que liberar memoria nosotros
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+}
+
+int main(int argc, char *argv[])
+{
+    is_running = initialize_window();
+
+    setup();
+
+    while (is_running)
+    {
+        process_input();
+        update();
+        render();
+    }
+
+    destroy_window();
+
+    return 0;
+}
