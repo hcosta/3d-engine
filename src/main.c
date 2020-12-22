@@ -144,6 +144,29 @@ void draw_grid(void)
     // }
 }
 
+void draw_rectangle(int x, int y, int width, int height, uint32_t color)
+{
+    // Mi solución
+    // for (int j = y; j < y + height; j++)
+    // {
+    //     for (int i = x; i < x + width; i++)
+    //     {
+    //         color_buffer[(window_width * j) + i] = color;
+    //     }
+    // }
+
+    // Solución con bucles en cero
+    for (int i = 0; i < width; i++)
+    {
+        for (int j = 0; j < height; j++)
+        {
+            int current_x = x + i;
+            int current_y = y + j;
+            color_buffer[(window_width * current_y) + current_x] = color;
+        }
+    }
+}
+
 void clear_color_buffer(uint32_t color)
 {
     for (int y = 0; y < window_height; y++)
@@ -174,6 +197,7 @@ void render(void)
 
     // Dibujamos la cuadrícula
     draw_grid();
+    draw_rectangle(100, 100, 250, 125, 0xFFFA68D8);
 
     // Copiamos el color buffer a la textura y lo limpiamos
     render_color_buffer();
