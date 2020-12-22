@@ -42,7 +42,7 @@ bool initialize_window(void)
     }
 
     // Crear renderer SDL
-    renderer = SDL_CreateRenderer(window, -1, 0); // -1 primer output disponible
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC); // -1 primer output disponible
 
     if (!renderer)
     {

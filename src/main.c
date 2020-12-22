@@ -15,9 +15,15 @@ bool is_running = false;
 vec3_t cube_points[N_POINTS];
 vec2_t projected_points[N_POINTS];
 vec3_t camera_position = {.x = 0, .y = 0, .z = -5};
+vec3_t cube_rotation = {.x = 0, .y = 0, .z = 0};
 
 // Field of view factor (factor de reescalado)
 float fov_factor = 640;
+
+// Control de FPS
+unsigned int a;
+unsigned int b;
+double delta = 0;
 
 void setup(void)
 {
@@ -83,15 +89,23 @@ vec2_t project(vec3_t point)
 
 void update(void)
 {
+    cube_rotation.x += 0.005;
+    cube_rotation.y += 0.005;
+    cube_rotation.z += 0.005;
+
     for (int i = 0; i < N_POINTS; i++)
     {
         vec3_t point = cube_points[i];
 
-        // Movemos los puntos lejos de la cámara
-        point.z -= camera_position.z;
+        vec3_t transformed_point = vec3_rotate_x(point, cube_rotation.x);
+        transformed_point = vec3_rotate_y(transformed_point, cube_rotation.y);
+        transformed_point = vec3_rotate_z(transformed_point, cube_rotation.z);
 
-        // Proyectamos el punto actual de 3D a 2D
-        vec2_t projected_point = project(point);
+        // Trasladamos los puntos lejos de la cámara
+        transformed_point.z -= camera_position.z;
+
+        // Proyectamos el punto transformado de 3D a 2D
+        vec2_t projected_point = project(transformed_point);
 
         // Guardamos el vector 2D proyectado en el array de puntos proyectados
         projected_points[i] = projected_point;
@@ -138,11 +152,23 @@ int main(int argc, char *argv[])
 
     // vec3_t myvector = {2.0, 3.0, -4.0};
 
+    b = SDL_GetTicks();
+
     while (is_running)
     {
-        process_input();
-        update();
-        render();
+        // Control de FPS
+        a = SDL_GetTicks();
+        delta = a - b;
+
+        if (delta > 1000 / 60.0)
+        {
+            b = a;
+
+            // Procesos del loop
+            process_input();
+            update();
+            render();
+        }
     }
 
     destroy_window();
