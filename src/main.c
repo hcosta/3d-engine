@@ -20,10 +20,7 @@ vec3_t cube_rotation = {.x = 0, .y = 0, .z = 0};
 // Field of view factor (factor de reescalado)
 float fov_factor = 640;
 
-// Control de FPS
-unsigned int a;
-unsigned int b;
-double delta = 0;
+int previous_frame_time = 0;
 
 void setup(void)
 {
@@ -89,6 +86,22 @@ vec2_t project(vec3_t point)
 
 void update(void)
 {
+    // Esto genera un bucle para capar los FPS, pero consume toda la CPU
+    // while (!SDL_TICKS_PASSED(SDL_GetTicks(), previous_frame_time + FRAME_TARGET_TIME));
+
+    // En su lugar usaremos SDL_Delay a nivel de SO para poner en IDLE el proceso un tiempo
+
+    // Esperamos algo de tiempo hasta alcanzar el objetivo en milisegundos
+    int time_to_wait = FRAME_TARGET_TIME - (SDL_GetTicks() - previous_frame_time);
+
+    if (time_to_wait > 0 && time_to_wait <= FRAME_TARGET_TIME)
+    {
+        SDL_Delay(time_to_wait);
+    }
+
+    // Cuantos milisegundos han pasado desde que empieza el juego
+    previous_frame_time = SDL_GetTicks();
+
     cube_rotation.x += 0.005;
     cube_rotation.y += 0.005;
     cube_rotation.z += 0.005;
@@ -150,25 +163,11 @@ int main(int argc, char *argv[])
 
     setup();
 
-    // vec3_t myvector = {2.0, 3.0, -4.0};
-
-    b = SDL_GetTicks();
-
     while (is_running)
     {
-        // Control de FPS
-        a = SDL_GetTicks();
-        delta = a - b;
-
-        if (delta > 1000 / 60.0)
-        {
-            b = a;
-
-            // Procesos del loop
-            process_input();
-            update();
-            render();
-        }
+        process_input();
+        update();
+        render();
     }
 
     destroy_window();

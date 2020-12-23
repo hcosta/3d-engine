@@ -7,6 +7,12 @@
 #include <stdbool.h>
 #include <SDL2/SDL.h>
 
+// Fotogramas que vamos a forzar por segundo
+#define FPS 60
+
+// Cuantos milisegundos deben pasar entre cada fotograma
+#define FRAME_TARGET_TIME (1000 / FPS)
+
 extern bool is_fullscreen;
 extern int window_width;
 extern int window_height;
