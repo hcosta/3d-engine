@@ -5,21 +5,16 @@
 #include <SDL2/SDL.h>
 #include "display.h"
 #include "vector.h"
+#include "mesh.h"
 
-// Globales
-bool is_running = false;
+triangle_t triangles_to_render[N_MESH_FACES];
 
-// Array de vectores/puntos
-// const int N_POINTS = 9 * 9 * 9; // 9x9x9 cube
-#define N_POINTS (9 * 9 * 9)
-vec3_t cube_points[N_POINTS];
-vec2_t projected_points[N_POINTS];
 vec3_t camera_position = {.x = 0, .y = 0, .z = -5};
 vec3_t cube_rotation = {.x = 0, .y = 0, .z = 0};
 
-// Field of view factor (factor de reescalado)
 float fov_factor = 640;
 
+bool is_running = false;
 int previous_frame_time = 0;
 
 void setup(void)
@@ -34,22 +29,6 @@ void setup(void)
         SDL_TEXTUREACCESS_STREAMING,
         window_width,
         window_height);
-
-    int point_count = 0;
-
-    // Empezar a cargar el array de vectores
-    // De -1 a 1 (en el cubo 9x9x9)
-    for (float x = -1; x <= 1; x += 0.25)
-    {
-        for (float y = -1; y <= 1; y += 0.25)
-        {
-            for (float z = -1; z <= 1; z += 0.25)
-            {
-                vec3_t new_point = {.x = x, .y = y, .z = z};
-                cube_points[point_count++] = new_point;
-            }
-        }
-    }
 }
 
 void process_input(void)
@@ -88,9 +67,7 @@ void update(void)
 {
     // Esto genera un bucle para capar los FPS, pero consume toda la CPU
     // while (!SDL_TICKS_PASSED(SDL_GetTicks(), previous_frame_time + FRAME_TARGET_TIME));
-
     // En su lugar usaremos SDL_Delay a nivel de SO para poner en IDLE el proceso un tiempo
-
     // Esperamos algo de tiempo hasta alcanzar el objetivo en milisegundos
     int time_to_wait = FRAME_TARGET_TIME - (SDL_GetTicks() - previous_frame_time);
 
@@ -106,48 +83,57 @@ void update(void)
     cube_rotation.y += 0.005;
     cube_rotation.z += 0.005;
 
-    for (int i = 0; i < N_POINTS; i++)
+    // Iteramos todas las caras de la malla
+    for (int i = 0; i < N_MESH_FACES; i++)
     {
-        vec3_t point = cube_points[i];
+        face_t mesh_face = mesh_faces[i];
 
-        vec3_t transformed_point = vec3_rotate_x(point, cube_rotation.x);
-        transformed_point = vec3_rotate_y(transformed_point, cube_rotation.y);
-        transformed_point = vec3_rotate_z(transformed_point, cube_rotation.z);
+        vec3_t face_vertices[3];
+        face_vertices[0] = mesh_vertices[mesh_face.a - 1];
+        face_vertices[1] = mesh_vertices[mesh_face.b - 1];
+        face_vertices[2] = mesh_vertices[mesh_face.c - 1];
 
-        // Trasladamos los puntos lejos de la cámara
-        transformed_point.z -= camera_position.z;
+        triangle_t projected_triangle;
 
-        // Proyectamos el punto transformado de 3D a 2D
-        vec2_t projected_point = project(transformed_point);
+        // Iteramos los 3 vértices de la cara actual y aplicamos transformaciones
+        for (int j = 0; j < 3; j++)
+        {
+            vec3_t transformed_vertex = face_vertices[j];
 
-        // Guardamos el vector 2D proyectado en el array de puntos proyectados
-        projected_points[i] = projected_point;
+            transformed_vertex = vec3_rotate_x(transformed_vertex, cube_rotation.x);
+            transformed_vertex = vec3_rotate_y(transformed_vertex, cube_rotation.y);
+            transformed_vertex = vec3_rotate_z(transformed_vertex, cube_rotation.z);
+
+            // Trasladamos el vértice lejos de la cámara
+            transformed_vertex.z -= camera_position.z;
+
+            // Proyectamos el vértice
+            vec2_t projected_point = project(transformed_vertex);
+
+            // Escalamos y trasladamos los puntos proyectados al centro de la pantalla
+            projected_point.x += (window_width / 2);
+            projected_point.y += (window_height / 2);
+            projected_triangle.points[j] = projected_point;
+        }
+
+        // Guardamos el triángulo proyectado en el array de triángulos a renderizar
+        triangles_to_render[i] = projected_triangle;
     }
 }
 
 void render(void)
 {
-    // No necesitamos esto al usar el color buffer
-    // SDL_SetRenderDrawColor(renderer, 150, 150, 0, 255);
-    // SDL_RenderClear(renderer);
-
     // Dibujamos la cuadrícula
     draw_grid();
 
-    // draw_pixel(20, 20, 0xFFFFFF00);
-    // draw_rect(100, 100, 250, 125, 0xFFFA68D8);
-
-    // Iteramos los puntos proyectados y los renderizamos
-    for (int i = 0; i < N_POINTS; i++)
+    // Iteramos los triángulos a renderizar
+    for (int i = 0; i < N_MESH_FACES; i++)
     {
-        vec2_t projected_point = projected_points[i];
-        // Dibujamos un pequeño rectángulo en lugar de un punto
-        // Le añadiremos un offset para empezar en medio de la pantalla
-        draw_rect(
-            projected_point.x + (window_width / 2),
-            projected_point.y + (window_height / 2),
-            4, 4,
-            0xFFFFFF00);
+        // Renderizamos cada uno de los tres vértices uno por uno
+        triangle_t triangle = triangles_to_render[i];
+        draw_rect(triangle.points[0].x, triangle.points[0].y, 3, 3, 0xFFFFFF00);
+        draw_rect(triangle.points[1].x, triangle.points[1].y, 3, 3, 0xFFFFFF00);
+        draw_rect(triangle.points[2].x, triangle.points[2].y, 3, 3, 0xFFFFFF00);
     }
 
     // Copiamos el color buffer a la textura y lo limpiamos
