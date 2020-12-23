@@ -56,6 +56,9 @@ vec2_t project(vec3_t point)
     // Cuanto mayor es la profundidad Z, menor es el escalado
     // Eso genera el efecto de reducir el tamaño y dar la profundidad
     // Fórmulas: docs/01 Proyeccion_Perspectiva.png
+
+    // Si no dividimos por la distancia, tendremos una perspectiva sin profundidad
+    // como la que se utilza en juegos ortográficos e isométricos
     vec2_t projected_point = {
         .x = (fov_factor * point.x) / point.z,
         .y = (fov_factor * point.y) / point.z};
@@ -129,17 +132,23 @@ void render(void)
     // Iteramos los triángulos a renderizar
     for (int i = 0; i < N_MESH_FACES; i++)
     {
-        // Renderizamos cada uno de los tres vértices uno por uno
         triangle_t triangle = triangles_to_render[i];
+
+        // Renderizamos cada uno de los tres vértices uno por uno
         draw_rect(triangle.points[0].x, triangle.points[0].y, 3, 3, 0xFFFFFF00);
         draw_rect(triangle.points[1].x, triangle.points[1].y, 3, 3, 0xFFFFFF00);
-        draw_rect(triangle.points[2].x, triangle.points[2].y, 3, 3, 0xFFFFFF00);
-    }
+        draw_rect(triangle.points[2].x, triangle.points[2].y, 5, 3, 0xFFFFFF00);
 
-    // Renderizo unas líneas de prueba
-    draw_line(300, 300, 500, 400, 0xFFFFFF00);
-    draw_line(300, 300, 500, 350, 0xFFFF00FF);
-    draw_line(300, 300, 500, 301, 0xFF00FFFF);
+        // Renderizamos los lados de cada triángulo
+        draw_triangle(
+            triangle.points[0].x,
+            triangle.points[0].y,
+            triangle.points[1].x,
+            triangle.points[1].y,
+            triangle.points[2].x,
+            triangle.points[2].y,
+            0xFF008000);
+    }
 
     // Copiamos el color buffer a la textura y lo limpiamos
     render_color_buffer();

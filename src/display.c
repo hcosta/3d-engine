@@ -151,26 +151,33 @@ void draw_line(int x0, int y0, int x1, int y1, uint32_t color)
     // al evitar el uso de flotantes y resolver la tarea únicamente con enteros
 
     int delta_x = (x1 - x0); // longitud horizontal
-    int delta_y = (y1 - x0); // longitud vertical
+    int delta_y = (y1 - y0); // longitud vertical
 
     // Asignamos la longitud más grande para encontrar el número de pasos (píxeles a dibujar)
-    int side_length = abs(delta_x) >= abs(delta_y) ? abs(delta_x) : abs(delta_y);
+    int longest_side_length = abs(delta_x) >= abs(delta_y) ? abs(delta_x) : abs(delta_y);
 
     // Buscamos cuanto debemos incrementar 'x' e 'y' en cada paso
-    float x_inc = delta_x / (float)side_length;
-    float y_inc = delta_y / (float)side_length;
+    float x_inc = delta_x / (float)longest_side_length;
+    float y_inc = delta_y / (float)longest_side_length;
 
     float current_x = x0;
     float current_y = y0;
 
     // Redondeamos a entero las nuevas posiciones en cada paso para dibujarlas ahí
-    for (int i = 0; i <= side_length; i++)
+    for (int i = 0; i <= longest_side_length; i++)
     {
         // Redondeamos para dibujar cada píxel ()
         draw_pixel(round(current_x), round(current_y), color);
         current_x += x_inc;
         current_y += y_inc;
     }
+}
+
+void draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color)
+{
+    draw_line(x0, y0, x1, y1, color);
+    draw_line(x1, y1, x2, y2, color);
+    draw_line(x2, y2, x0, y0, color); // completamos el polígono
 }
 
 void draw_rect(int x, int y, int width, int height, uint32_t color)
