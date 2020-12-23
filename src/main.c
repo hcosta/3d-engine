@@ -136,6 +136,11 @@ void render(void)
         draw_rect(triangle.points[2].x, triangle.points[2].y, 3, 3, 0xFFFFFF00);
     }
 
+    // Renderizo unas líneas de prueba
+    draw_line(300, 300, 500, 400, 0xFFFFFF00);
+    draw_line(300, 300, 500, 350, 0xFFFF00FF);
+    draw_line(300, 300, 500, 301, 0xFF00FFFF);
+
     // Copiamos el color buffer a la textura y lo limpiamos
     render_color_buffer();
     clear_color_buffer(0xFF000000);
