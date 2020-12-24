@@ -55,8 +55,6 @@ bool initialize_window(void)
 
 void destroy_window(void)
 {
-    // El array sabe cuantos elementos lo forman, aqui liberamos la memoria
-    free(color_buffer);
 
     // C no tiene recolector de basura... tenemos que liberar memoria nosotros
     SDL_DestroyRenderer(renderer);
