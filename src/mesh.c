@@ -29,7 +29,6 @@ void load_obj_file_data(char *filename)
             vertex.y = strtod(strtok(NULL, " "), NULL);
             vertex.z = strtod(strtok(NULL, " "), NULL);
             array_push(mesh.vertices, vertex);
-            //printf("%f %f %f\n", vertex.x, vertex.y, vertex.z);
         }
 
         // Faces

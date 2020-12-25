@@ -1,6 +1,18 @@
 #include <math.h>
 #include "vector.h"
 
+// Implementación Funciones Vectores 2D
+float vec_2_length(vec2_t v)
+{
+    return sqrt(v.x * v.x + v.y * v.y);
+}
+
+// Implementación Funciones Vectores 3D
+float vec_3_length(vec3_t v)
+{
+    return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+}
+
 vec3_t vec3_rotate_x(vec3_t v, float angle)
 {
     vec3_t rotated_vector = {
