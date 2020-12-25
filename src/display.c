@@ -53,10 +53,10 @@ bool initialize_window(void)
     return true;
 }
 
+// C no tiene recolector de basura... tenemos que liberar memoria nosotros
 void destroy_window(void)
 {
 
-    // C no tiene recolector de basura... tenemos que liberar memoria nosotros
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
@@ -89,18 +89,6 @@ void draw_grid(void)
 {
     // Dibujar una cuadrícula que rellena el espacio
     // Las líneas deben concordar con las filas y columnas múltiples de 10
-
-    // Forma con condicionales
-    // for (int y = 0; y < window_height; y++)
-    // {
-    //     for (int x = 0; x < window_width; x++)
-    //     {
-    //         if (x % 10 == 0 || y % 10 == 0)
-    //             color_buffer[(window_width * y) + x] = 0xFF333333;
-    //     }
-    // }
-
-    // Forma alternativa
     for (int y = 0; y < window_height; y += 10)
     {
         for (int x = 0; x < window_width; x += 10)
@@ -109,27 +97,6 @@ void draw_grid(void)
                 color_buffer[(window_width * y) + x] = 0xFF333333;
         }
     }
-
-    // Forma sin condicionales con offset
-    //int offset = 10;
-
-    // Draw Horizontal Lines
-    // for (int y = offset / 2; y < window_height; y += offset)
-    // {
-    //     for (int x = 0; x < window_width; x += 1)
-    //     {
-    //         color_buffer[(window_width * y) + x] = 0xFF333333;
-    //     }
-    // }
-
-    // // Draw Vertical Lines
-    // for (int y = 0; y < window_height; y += 1)
-    // {
-    //     for (int x = offset / 2; x < window_width; x += offset)
-    //     {
-    //         color_buffer[(window_width * y) + x] = 0xFF333333;
-    //     }
-    // }
 }
 
 void draw_pixel(int x, int y, uint32_t color)
@@ -141,10 +108,9 @@ void draw_pixel(int x, int y, uint32_t color)
     }
 }
 
+// Algoritmo DDA: https://es.wikipedia.org/wiki/Analizador_diferencial_digital
 void draw_line(int x0, int y0, int x1, int y1, uint32_t color)
 {
-
-    // Algoritmo DDA: https://es.wikipedia.org/wiki/Analizador_diferencial_digital
     // Alternativamente es mejor usar el algoritmo Bresenham por ser más eficiente
     // al evitar el uso de flotantes y resolver la tarea únicamente con enteros
 
@@ -180,14 +146,6 @@ void draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t colo
 
 void draw_rect(int x, int y, int width, int height, uint32_t color)
 {
-    // Mi solución
-    // for (int j = y; j < y + height; j++)
-    // {
-    //     for (int i = x; i < x + width; i++)
-    //     {
-    //         color_buffer[(window_width * j) + i] = color;
-    //     }
-    // }
 
     // Solución con bucles en cero
     for (int i = 0; i < width; i++)

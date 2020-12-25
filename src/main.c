@@ -29,7 +29,10 @@ void setup(void)
         window_width,
         window_height);
 
-    load_cube_mesh_data();
+    // Carga los valores del cubo en la estructura de mallas
+    // load_cube_mesh_data();
+
+    load_obj_file_data("./assets/f22.obj");
 }
 
 void process_input(void)
@@ -141,9 +144,9 @@ void render(void)
         triangle_t triangle = triangles_to_render[i];
 
         // Renderizamos cada uno de los tres vértices uno por uno
-        draw_rect(triangle.points[0].x, triangle.points[0].y, 3, 3, 0xFFFFFF00);
-        draw_rect(triangle.points[1].x, triangle.points[1].y, 3, 3, 0xFFFFFF00);
-        draw_rect(triangle.points[2].x, triangle.points[2].y, 5, 3, 0xFFFFFF00);
+        // draw_rect(triangle.points[0].x, triangle.points[0].y, 3, 3, 0xFFFFFF00);
+        // draw_rect(triangle.points[1].x, triangle.points[1].y, 3, 3, 0xFFFFFF00);
+        // draw_rect(triangle.points[2].x, triangle.points[2].y, 5, 3, 0xFFFFFF00);
 
         // Renderizamos los lados de cada triángulo
         draw_triangle(

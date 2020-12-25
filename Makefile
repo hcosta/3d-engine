@@ -5,7 +5,7 @@
 build:
 	gcc \
 	-Wfatal-errors \
-	-std=c99 \
+	-std=gnu99 \
 	./src/*.c \
 	-I"C:/MinGW/libsdl/include" \
 	-L"C:/MinGW/libsdl/lib" \
@@ -13,10 +13,10 @@ build:
 	-lSDL2main \
 	-lSDL2 \
 	-lm \
-	-o bin\renderer.exe
+	-o bin\engine.exe
 
 run:
-	bin\renderer.exe
+	bin\engine.exe
 
 clean:
-	del bin\renderer.exe
+	del bin\engine.exe
