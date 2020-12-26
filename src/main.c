@@ -10,7 +10,7 @@
 
 triangle_t *triangles_to_render = NULL;
 
-vec3_t camera_position = {.x = 0, .y = 0, .z = -5};
+vec3_t camera_position = {0, 0, 0};
 
 float fov_factor = 640;
 bool is_running = false;
@@ -31,16 +31,7 @@ void setup(void)
 
     // Carga los valores del cubo en la estructura de mallas
     // load_cube_mesh_data();
-
     load_obj_file_data("./assets/cube.obj");
-
-    vec3_t a = {2.5, 6.4, 3.0};
-    vec3_t b = {-2.2, 1.4, -1.0};
-
-    float a_length = vec3_length(a);
-    float b_length = vec3_length(b);
-
-    vec3_t add_ab = vec3_add(a, b);
 }
 
 void process_input(void)
@@ -111,9 +102,9 @@ void update(void)
         face_vertices[1] = mesh.vertices[mesh_face.b - 1];
         face_vertices[2] = mesh.vertices[mesh_face.c - 1];
 
-        triangle_t projected_triangle;
+        vec3_t transformed_vertices[3];
 
-        // Iteramos los 3 vértices de la cara actual y aplicamos transformaciones
+        // TRANSFORMACIONES: Iteramos los 3 vértices de la cara actual
         for (int j = 0; j < 3; j++)
         {
             vec3_t transformed_vertex = face_vertices[j];
@@ -122,15 +113,54 @@ void update(void)
             transformed_vertex = vec3_rotate_y(transformed_vertex, mesh.rotation.y);
             transformed_vertex = vec3_rotate_z(transformed_vertex, mesh.rotation.z);
 
-            // Trasladamos el vértice lejos de la cámara
-            transformed_vertex.z -= camera_position.z;
+            // Trasladamos el vértice de profundidad lejos de la cámara
+            transformed_vertex.z += 5;
 
+            // Guardamos el vértice transformado en el array
+            transformed_vertices[j] = transformed_vertex;
+        }
+
+        // Comprobamos el backface culling (si el triángulo mira la cámara para dibujarlo)
+        vec3_t vector_a = transformed_vertices[0]; /*   A   */
+        vec3_t vector_b = transformed_vertices[1]; /*  / \  */
+        vec3_t vector_c = transformed_vertices[2]; /* C---B */
+
+        // 1. Extraer los vectores B-A y C-A
+        vec3_t vector_ab = vec3_sub(vector_b, vector_a);
+        vec3_t vector_ac = vec3_sub(vector_c, vector_a);
+
+        // 2. Calculamos el vector normal usando producto vectorial (face normal)
+        // Prestar atención al engine, si lo hacemos left-handed el eje Z se
+        // incrementa con la profundidad (el orden de los vectores sí importa)
+        vec3_t normal = vec3_cross(vector_ab, vector_ac);
+
+        // 3. Buscamos el vector entre un punto del trángulo y el origen de la cámara
+        // Figura "docs/15 camera raycast.png"
+        vec3_t camera_ray = vec3_sub(camera_position, vector_a);
+
+        // 4. Calculamos cuán alineado está el camera_ray respecto al vector normal
+        // Utilizando para ello el producto escalar (el orden de los vectores no importa)
+        float dot_normal_camera = vec3_dot(normal, camera_ray);
+
+        // 5. Si el triángulo no está alineado con la cámara saltamos la iteración
+        // Esto ahorrará muchos cálculos al no dibujar los triángulos no alineados
+        if (dot_normal_camera < 0)
+        {
+            continue; //
+        }
+
+        triangle_t projected_triangle;
+
+        // PROYECCIONES: Iteramos los 3 vértices de la cara actual
+        for (int j = 0; j < 3; j++)
+        {
             // Proyectamos el vértice
-            vec2_t projected_point = project(transformed_vertex);
+            vec2_t projected_point = project(transformed_vertices[j]);
 
             // Escalamos y trasladamos los puntos proyectados al centro de la pantalla
             projected_point.x += (window_width / 2);
             projected_point.y += (window_height / 2);
+
             projected_triangle.points[j] = projected_point;
         }
 
