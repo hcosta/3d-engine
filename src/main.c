@@ -125,9 +125,13 @@ void update(void)
         vec3_t vector_b = transformed_vertices[1]; /*  / \  */
         vec3_t vector_c = transformed_vertices[2]; /* C---B */
 
-        // 1. Extraer los vectores B-A y C-A
+        // 1. Extraer los vectores B-A y C-A (solo nos interesa la dirección)
         vec3_t vector_ab = vec3_sub(vector_b, vector_a);
         vec3_t vector_ac = vec3_sub(vector_c, vector_a);
+
+        // Como añadido podemos normalizarlos
+        vec3_normalize(&vector_ab);
+        vec3_normalize(&vector_ac);
 
         // 2. Calculamos el vector normal usando producto vectorial (face normal)
         // Prestar atención al engine, si lo hacemos left-handed el eje Z se
@@ -148,13 +152,11 @@ void update(void)
         // 5. Si el triángulo no está alineado con la cámara saltamos la iteración
         // Esto ahorrará muchos cálculos al no dibujar los triángulos no alineados
         if (dot_normal_camera < 0)
-        {
-            continue; //
-        }
-
-        triangle_t projected_triangle;
+            continue;
 
         // PROYECCIONES: Iteramos los 3 vértices de la cara actual
+        triangle_t projected_triangle;
+
         for (int j = 0; j < 3; j++)
         {
             // Proyectamos el vértice
@@ -215,9 +217,7 @@ void free_resources(void)
 {
     array_free(mesh.faces);
     array_free(mesh.vertices);
-    free(color_buffer); // Si liberas algo que ya ha sido liberado da un error (lo tenía duplicado en display.c)
-    // https://cboard.cprogramming.com/c-programming/176238-need-help-understanding-error-1073741819-a.html
-    // Convert -1073741819 to hex - you get C0000005. This is windows generic "access violation".
+    free(color_buffer); // Si liberas algo que ya ha sido liberado da un error de memoria
 }
 
 int main(int argc, char *argv[])
