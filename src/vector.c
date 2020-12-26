@@ -44,6 +44,15 @@ float vec2_dot(vec2_t a, vec2_t b)
     return (a.x * b.x) + (a.y * b.y);
 }
 
+void vec2_normalize(vec2_t *v)
+{
+    // Para acceder a los miembros de un puntero usaremos la flecha ->
+    float length = sqrt(v->x * v->x + v->y * v->y);
+
+    v->x /= length;
+    v->y /= length;
+}
+
 // Implementación Funciones Vectores 3D
 float vec3_length(vec3_t v)
 {
@@ -99,6 +108,16 @@ vec3_t vec3_cross(vec3_t a, vec3_t b)
 float vec3_dot(vec3_t a, vec3_t b)
 {
     return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+}
+
+void vec3_normalize(vec3_t *v)
+{
+    // Para acceder a los miembros de un puntero usaremos la flecha ->
+    float length = sqrt(v->x * v->x + v->y * v->y + v->z * v->z);
+
+    v->x /= length;
+    v->y /= length;
+    v->z /= length;
 }
 
 vec3_t vec3_rotate_x(vec3_t v, float angle)

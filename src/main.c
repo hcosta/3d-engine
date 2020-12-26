@@ -134,6 +134,9 @@ void update(void)
         // incrementa con la profundidad (el orden de los vectores sí importa)
         vec3_t normal = vec3_cross(vector_ab, vector_ac);
 
+        // Es normal normalizar el vector normal (lo pasamos por referencia para optimizar)
+        vec3_normalize(&normal);
+
         // 3. Buscamos el vector entre un punto del trángulo y el origen de la cámara
         // Figura "docs/15 camera raycast.png"
         vec3_t camera_ray = vec3_sub(camera_position, vector_a);
