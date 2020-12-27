@@ -158,9 +158,12 @@ void update(void)
         {
             vec3_t transformed_vertex = face_vertices[j];
 
-            transformed_vertex = vec3_rotate_x(transformed_vertex, mesh.rotation.x);
-            transformed_vertex = vec3_rotate_y(transformed_vertex, mesh.rotation.y);
-            transformed_vertex = vec3_rotate_z(transformed_vertex, mesh.rotation.z);
+            transformed_vertex = vec3_rotate_x(
+                transformed_vertex, mesh.rotation.x);
+            transformed_vertex = vec3_rotate_y(
+                transformed_vertex, mesh.rotation.y);
+            transformed_vertex = vec3_rotate_z(
+                transformed_vertex, mesh.rotation.z);
 
             // Trasladamos el vértice de profundidad lejos de la cámara
             transformed_vertex.z += 5;
@@ -220,16 +223,35 @@ void update(void)
             projected_points[j].y += (window_height / 2);
         }
 
+        // Calculamos la profundidad media de cada cara basada en los vértices después de transformarlos (forma un poco "hacky")
+        float avg_depth = (transformed_vertices[0].z + transformed_vertices[1].z + transformed_vertices[2].z) / 3.0;
+
         triangle_t projected_triangle = {
             .points = {
                 {projected_points[0].x, projected_points[0].y},
                 {projected_points[1].x, projected_points[1].y},
                 {projected_points[2].x, projected_points[2].y},
             },
-            .color = mesh_face.color};
+            .color = mesh_face.color,
+            .avg_depth = avg_depth};
 
         // Guardamos el triángulo proyectado en el array de triángulos a renderizar
         array_push(triangles_to_render, projected_triangle);
+    }
+
+    // Ordenamos los triángulos a renderizar en base a su profundidad media
+    // Podemos hacer un típico algoritmo de burbuja intercambiando valores
+    for (int i = 0; i < array_length(triangles_to_render); i++)
+    {
+        for (int j = 0; j < array_length(triangles_to_render); j++)
+        {
+            if (triangles_to_render[j].avg_depth > triangles_to_render[i].avg_depth)
+            {
+                triangle_t tmp = triangles_to_render[i];
+                triangles_to_render[i] = triangles_to_render[j];
+                triangles_to_render[j] = tmp;
+            }
+        }
     }
 }
 
@@ -246,7 +268,9 @@ void render(void)
         triangle_t triangle = triangles_to_render[i];
 
         // Renderizamos el relleno de cada triángulo (fill)
-        if (render_method == RENDER_FILL_TRIANGLE || render_method == RENDER_FILL_TRIANGLE_WIRE)
+        if (
+            render_method == RENDER_FILL_TRIANGLE ||
+            render_method == RENDER_FILL_TRIANGLE_WIRE)
         {
             draw_filled_triangle(
                 triangle.points[0].x, triangle.points[0].y, // vertex A
@@ -256,7 +280,10 @@ void render(void)
         }
 
         // Dibujamos los bordes de cada triángulo (wireframe)
-        if (render_method == RENDER_WIRE || render_method == RENDER_WIRE_VERTEX || render_method == RENDER_FILL_TRIANGLE_WIRE)
+        if (
+            render_method == RENDER_WIRE ||
+            render_method == RENDER_WIRE_VERTEX ||
+            render_method == RENDER_FILL_TRIANGLE_WIRE)
         {
             draw_triangle(
                 triangle.points[0].x, triangle.points[0].y, // vertex A
