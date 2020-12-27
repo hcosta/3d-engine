@@ -1,9 +1,9 @@
 #include "display.h"
 
 // Globales
-bool is_fullscreen = true;
-int window_width = 800;
-int window_height = 600;
+bool is_fullscreen = false;
+int window_width = 1024;
+int window_height = 800;
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
 uint32_t *color_buffer = NULL;            // Puntero para array uint32 (32 bits / 4 bytes por entero)
