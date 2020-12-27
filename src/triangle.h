@@ -9,11 +9,13 @@ typedef struct
     int a;
     int b;
     int c;
+    int32_t color;
 } face_t;
 
 typedef struct
 {
     vec2_t points[3];
+    int32_t color;
 } triangle_t;
 
 void int_swap(int *a, int *b); //
