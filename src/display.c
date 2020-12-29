@@ -2,8 +2,8 @@
 
 // Globales
 bool is_fullscreen = false;
-int window_width = 1280;
-int window_height = 1024;
+int window_width = 1380;
+int window_height = 900;
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
 uint32_t *color_buffer = NULL;            // Puntero para array uint32 (32 bits / 4 bytes por entero)
@@ -33,7 +33,7 @@ bool initialize_window(void)
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
         window_width, window_height,
-        SDL_WINDOW_BORDERLESS);
+        SDL_WINDOW_RESIZABLE);
 
     if (!window)
     {

@@ -9,29 +9,15 @@
 #include "matrix.h"
 #include "mesh.h"
 
+// Array de triangulos que debo renderizar frame por frame
 triangle_t *triangles_to_render = NULL;
-
-vec3_t camera_position = {0, 0, 0};
-
-float fov_factor = 640;
+// Variables globales de estado y bucle de juego
 bool is_running = false;
 int previous_frame_time = 0;
-int rendering_mode = 0;
+vec3_t camera_position = {0, 0, 0};
+mat4_t proj_matrix;
 
-enum cull_method
-{
-    CULL_NONE,
-    CULL_BACKFACE
-} cull_method;
-
-enum render_method
-{
-    RENDER_WIRE,
-    RENDER_WIRE_VERTEX,
-    RENDER_FILL_TRIANGLE,
-    RENDER_FILL_TRIANGLE_WIRE
-} render_method;
-
+// La función setup inicializa variables y objetos del juego
 void setup(void)
 {
     // Inicializamos el modo de renderizado y el culling
@@ -48,6 +34,12 @@ void setup(void)
         SDL_TEXTUREACCESS_STREAMING,
         window_width,
         window_height);
+
+    // Inicilizamos la matrix de projección de la perspectiva
+    float fov = M_PI / 3.0; // esto es lo mismo que 180/3, o 60deg (en radianos)
+    float aspect = (float)window_height / (float)window_width;
+    float znear = 0.1, zfar = 100.0;
+    proj_matrix = mat4_make_perspective(fov, aspect, znear, zfar);
 
     // Carga los valores del cubo en la estructura de mallas
     load_cube_mesh_data();
@@ -101,23 +93,23 @@ void process_input(void)
     }
 }
 
-// Transforma un vec3 a vec2, proyección paralela ortográfica
-vec2_t project(vec3_t point)
-{
+// // Transforma un vec3 a vec2, proyección paralela ortográfica
+// vec2_t project(vec3_t point)
+// {
 
-    // El ratio entre los lados de triángulos similares es el mismo
-    // Cuanto mayor es la profundidad Z, menor es el escalado
-    // Eso genera el efecto de reducir el tamaño y dar la profundidad
-    // Fórmulas: docs/01 Proyeccion_Perspectiva.png
+//     // El ratio entre los lados de triángulos similares es el mismo
+//     // Cuanto mayor es la profundidad Z, menor es el escalado
+//     // Eso genera el efecto de reducir el tamaño y dar la profundidad
+//     // Fórmulas: docs/01 Proyeccion_Perspectiva.png
 
-    // Si no dividimos por la distancia, tendremos una perspectiva sin profundidad
-    // como la que se utilza en juegos ortográficos e isométricos
-    vec2_t projected_point = {
-        .x = (fov_factor * point.x) / point.z,
-        .y = (fov_factor * point.y) / point.z};
+//     // Si no dividimos por la distancia, tendremos una perspectiva sin profundidad
+//     // como la que se utilza en juegos ortográficos e isométricos
+//     vec2_t projected_point = {
+//         .x = (fov_factor * point.x) / point.z,
+//         .y = (fov_factor * point.y) / point.z};
 
-    return projected_point;
-}
+//     return projected_point;
+// }
 
 void update(void)
 {
@@ -136,18 +128,19 @@ void update(void)
     triangles_to_render = NULL;
 
     // Cambiamos los valores del mesh scale/rotation en cada frame
-    // mesh.rotation.x += 0.01;
-    mesh.rotation.y += 0.01;
+    mesh.rotation.x += 0.01;
+    // mesh.rotation.y += 0.01;
     // mesh.rotation.z += 0.01;
     // mesh.scale.x += 0.002;
     // mesh.scale.y += 0.002;
-    mesh.scale.z += 0.005;
+    // mesh.scale.z += 0.005;
     // mesh.translation.x += 0.005;
-    mesh.translation.z = 10.0; // Trasladamos el vértice de profundidad lejos de la cámara
+    mesh.translation.z = 7.0; // Trasladamos el vértice de profundidad lejos de la cámara
 
     // Crear una matriz de escalado, rotación y traslación que utilizará el multiplicador del mesh vertices
     mat4_t scale_matrix = mat4_make_scale(mesh.scale.x, mesh.scale.y, mesh.scale.z);
-    mat4_t translation_matrix = mat4_make_translation(mesh.translation.x, mesh.translation.y, mesh.translation.z);
+    mat4_t translation_matrix = mat4_make_translation(
+        mesh.translation.x, mesh.translation.y, mesh.translation.z);
     mat4_t rotation_matrix_x = mat4_make_rotation_x(mesh.rotation.x);
     mat4_t rotation_matrix_y = mat4_make_rotation_y(mesh.rotation.y);
     mat4_t rotation_matrix_z = mat4_make_rotation_z(mesh.rotation.z);
@@ -230,16 +223,20 @@ void update(void)
         }
 
         // PROYECCIONES: Iteramos los 3 vértices de la cara actual
-        vec2_t projected_points[3];
+        vec4_t projected_points[3];
 
         for (int j = 0; j < 3; j++)
         {
             // Proyectamos el vértice
-            projected_points[j] = project(vec3_from_vec4(transformed_vertices[j]));
+            projected_points[j] = mat4_mul_vec4_project(proj_matrix, transformed_vertices[j]);
+
+            // Escalamos en la vista
+            projected_points[j].x *= (window_width / 2.0);
+            projected_points[j].y *= (window_height / 2.0);
 
             // Escalamos y trasladamos los puntos proyectados al centro de la pantalla
-            projected_points[j].x += (window_width / 2);
-            projected_points[j].y += (window_height / 2);
+            projected_points[j].x += (window_width / 2.0);
+            projected_points[j].y += (window_height / 2.0);
         }
 
         // Calculamos la profundidad media de cada cara basada en los vértices después de transformarlos (forma un poco "hacky")

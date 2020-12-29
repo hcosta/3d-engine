@@ -120,3 +120,33 @@ mat4_t mat4_mul_mat4(mat4_t a, mat4_t b)
     }
     return m;
 }
+
+mat4_t mat4_make_perspective(float fov, float aspect, float znear, float zfar)
+{
+    // | (h/w)*1/tan(fov/2)                  0                   0                   0 |
+    // |                  0       1/tan(fov/2)                   0                   0 |
+    // |                  0                  0          zf/(zf-zn)    (-zf*zn)/(zf-zn) |
+    // |                  0                  0                   1                   0 |
+    mat4_t m = {{{0}}};
+    m.m[0][0] = aspect * (1 / tan(fov / 2));
+    m.m[1][1] = 1 / tan(fov / 2);
+    m.m[2][2] = zfar / (zfar - znear);            // este numero
+    m.m[3][3] = (-zfar * znear) / (zfar - znear); // y este manejan la profundidad Z
+    m.m[3][2] = 1.0;                              // establecemos 1 para almacenar z original
+
+    return m;
+}
+
+vec4_t mat4_mul_vec4_project(mat4_t mat_proj, vec4_t v)
+{
+    // multiplicamos la matriz de proyección por el vector original
+    vec4_t result = mat4_mul_vec4(mat_proj, v);
+    // realizamos la perspectiva divieidno la Z original al valor guardado en W
+    if (result.w != 0.0)
+    {
+        result.x /= result.w;
+        result.y /= result.w;
+        result.z /= result.w;
+    }
+    return result;
+}
