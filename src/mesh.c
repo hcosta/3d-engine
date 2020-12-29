@@ -8,7 +8,9 @@
 mesh_t mesh = {
     .vertices = NULL,
     .faces = NULL,
-    .rotation = {0, 0, 0}};
+    .rotation = {0, 0, 0},
+    .scale = {1.0, 1.0, 1.0},
+    .translation = {0, 0, 0}};
 
 // Leemos el contenido del fichero .obj y cargamos los vértices
 // y las caras en nuestro mesh.vertices y mesh.faces

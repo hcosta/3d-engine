@@ -3,10 +3,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <SDL2/SDL.h>
+#include "array.h"
 #include "display.h"
 #include "vector.h"
+#include "matrix.h"
 #include "mesh.h"
-#include "array.h"
 
 triangle_t *triangles_to_render = NULL;
 
@@ -134,10 +135,21 @@ void update(void)
     // Inicializamos el array de triángulos a renderizar
     triangles_to_render = NULL;
 
-    // Añadimos rotación
+    // Cambiamos los valores del mesh scale/rotation en cada frame
     mesh.rotation.x += 0.01;
-    mesh.rotation.y += 0.01;
-    mesh.rotation.z += 0.01;
+    // mesh.rotation.y += 0.01;
+    // mesh.rotation.z += 0.01;
+    // mesh.scale.x += 0.002;
+    // mesh.scale.y += 0.002;
+    // mesh.translation.x += 0.005;
+    mesh.translation.z = 6.0; // Trasladamos el vértice de profundidad lejos de la cámara
+
+    // Crear una matriz de escalado, rotación y traslación que utilizará el multiplicador del mesh vertices
+    mat4_t scale_matrix = mat4_make_scale(mesh.scale.x, mesh.scale.y, mesh.scale.z);
+    mat4_t translation_matrix = mat4_make_translation(mesh.translation.x, mesh.translation.y, mesh.translation.z);
+    mat4_t rotation_matrix_x = mat4_make_rotation_x(mesh.rotation.x);
+    mat4_t rotation_matrix_y = mat4_make_rotation_y(mesh.rotation.y);
+    mat4_t rotation_matrix_z = mat4_make_rotation_z(mesh.rotation.z);
 
     // Iteramos todas las caras de la malla
     int num_faces = array_length(mesh.faces);
@@ -151,22 +163,22 @@ void update(void)
         face_vertices[1] = mesh.vertices[mesh_face.b - 1];
         face_vertices[2] = mesh.vertices[mesh_face.c - 1];
 
-        vec3_t transformed_vertices[3];
+        vec4_t transformed_vertices[3];
 
         // TRANSFORMACIONES: Iteramos los 3 vértices de la cara actual
         for (int j = 0; j < 3; j++)
         {
-            vec3_t transformed_vertex = face_vertices[j];
+            vec4_t transformed_vertex = vec4_from_vec3(face_vertices[j]);
 
-            transformed_vertex = vec3_rotate_x(
-                transformed_vertex, mesh.rotation.x);
-            transformed_vertex = vec3_rotate_y(
-                transformed_vertex, mesh.rotation.y);
-            transformed_vertex = vec3_rotate_z(
-                transformed_vertex, mesh.rotation.z);
-
-            // Trasladamos el vértice de profundidad lejos de la cámara
-            transformed_vertex.z += 5;
+            // Utilizamos una matriz para escalar nuestro vértice original
+            // Multiplicamos la scale_matrix, translation_matrix y rotation_matrix por el vértice
+            // IMPORTANTE: El orden de las transformaciones debe tenerse en cuenta <-----
+            // 1. Escalar  2. Rotar  3. Trasladar
+            transformed_vertex = mat4_mul_vec4(scale_matrix, transformed_vertex);
+            transformed_vertex = mat4_mul_vec4(rotation_matrix_x, transformed_vertex);
+            transformed_vertex = mat4_mul_vec4(rotation_matrix_y, transformed_vertex);
+            transformed_vertex = mat4_mul_vec4(rotation_matrix_z, transformed_vertex);
+            transformed_vertex = mat4_mul_vec4(translation_matrix, transformed_vertex);
 
             // Guardamos el vértice transformado en el array
             transformed_vertices[j] = transformed_vertex;
@@ -176,9 +188,9 @@ void update(void)
         if (cull_method == CULL_BACKFACE)
         {
             // Comprobamos el backface culling (si el triángulo mira la cámara para dibujarlo)
-            vec3_t vector_a = transformed_vertices[0]; /*   A   */
-            vec3_t vector_b = transformed_vertices[1]; /*  / \  */
-            vec3_t vector_c = transformed_vertices[2]; /* C---B */
+            vec3_t vector_a = vec3_from_vec4(transformed_vertices[0]); /*   A   */
+            vec3_t vector_b = vec3_from_vec4(transformed_vertices[1]); /*  / \  */
+            vec3_t vector_c = vec3_from_vec4(transformed_vertices[2]); /* C---B */
 
             // 1. Extraer los vectores B-A y C-A (solo nos interesa la dirección)
             vec3_t vector_ab = vec3_sub(vector_b, vector_a);
@@ -216,7 +228,7 @@ void update(void)
         for (int j = 0; j < 3; j++)
         {
             // Proyectamos el vértice
-            projected_points[j] = project(transformed_vertices[j]);
+            projected_points[j] = project(vec3_from_vec4(transformed_vertices[j]));
 
             // Escalamos y trasladamos los puntos proyectados al centro de la pantalla
             projected_points[j].x += (window_width / 2);
