@@ -136,13 +136,14 @@ void update(void)
     triangles_to_render = NULL;
 
     // Cambiamos los valores del mesh scale/rotation en cada frame
-    mesh.rotation.x += 0.01;
-    // mesh.rotation.y += 0.01;
+    // mesh.rotation.x += 0.01;
+    mesh.rotation.y += 0.01;
     // mesh.rotation.z += 0.01;
     // mesh.scale.x += 0.002;
     // mesh.scale.y += 0.002;
+    mesh.scale.z += 0.005;
     // mesh.translation.x += 0.005;
-    mesh.translation.z = 6.0; // Trasladamos el vértice de profundidad lejos de la cámara
+    mesh.translation.z = 10.0; // Trasladamos el vértice de profundidad lejos de la cámara
 
     // Crear una matriz de escalado, rotación y traslación que utilizará el multiplicador del mesh vertices
     mat4_t scale_matrix = mat4_make_scale(mesh.scale.x, mesh.scale.y, mesh.scale.z);
@@ -170,16 +171,22 @@ void update(void)
         {
             vec4_t transformed_vertex = vec4_from_vec3(face_vertices[j]);
 
-            // Utilizamos una matriz para escalar nuestro vértice original
-            // Multiplicamos la scale_matrix, translation_matrix y rotation_matrix por el vértice
-            // IMPORTANTE: El orden de las transformaciones debe tenerse en cuenta <-----
-            // 1. Escalar  2. Rotar  3. Trasladar
-            transformed_vertex = mat4_mul_vec4(scale_matrix, transformed_vertex);
-            transformed_vertex = mat4_mul_vec4(rotation_matrix_x, transformed_vertex);
-            transformed_vertex = mat4_mul_vec4(rotation_matrix_y, transformed_vertex);
-            transformed_vertex = mat4_mul_vec4(rotation_matrix_z, transformed_vertex);
-            transformed_vertex = mat4_mul_vec4(translation_matrix, transformed_vertex);
+            // Creamos una matriz de mundo combinando escalado, rotación y traslación de matrices
+            mat4_t world_matrix = mat4_identity();
 
+            // Multiplicamos todas las matrices para cargar la matriz de mundo
+            // La matriz de la izquierda es la que transforma la matriz de la derecha
+            // IMPORTANTE: El orden de las transformaciones debe tenerse en cuenta
+            //             1. Escalar  2. Rotar  3. Trasladar
+            //                    [T] * [R] * [S] * v
+            world_matrix = mat4_mul_mat4(scale_matrix, world_matrix);
+            world_matrix = mat4_mul_mat4(rotation_matrix_z, world_matrix);
+            world_matrix = mat4_mul_mat4(rotation_matrix_y, world_matrix);
+            world_matrix = mat4_mul_mat4(rotation_matrix_x, world_matrix);
+            world_matrix = mat4_mul_mat4(translation_matrix, world_matrix);
+
+            // Multiplicamos la matriz de mundo por el vector original del vertice
+            transformed_vertex = mat4_mul_vec4(world_matrix, transformed_vertex);
             // Guardamos el vértice transformado en el array
             transformed_vertices[j] = transformed_vertex;
         }
