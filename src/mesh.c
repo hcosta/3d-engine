@@ -14,7 +14,7 @@ mesh_t mesh = {
 
 // Leemos el contenido del fichero .obj y cargamos los vértices
 // y las caras en nuestro mesh.vertices y mesh.faces
-void load_obj_file_data(char *filename)
+void load_obj_file_data_custom(char *filename)
 {
 
     FILE *file = fopen(filename, "r"); /* should check the result */
@@ -51,7 +51,7 @@ void load_obj_file_data(char *filename)
 }
 
 // Versión usando sscanf en porciones
-void load_obj_file_data_sscanf(char *filename)
+void load_obj_file_data(char *filename)
 {
     FILE *file;
     file = fopen(filename, "r");

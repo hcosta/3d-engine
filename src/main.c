@@ -16,7 +16,7 @@ triangle_t *triangles_to_render = NULL;
 // Variables globales de estado y bucle de juego
 bool is_running = false;
 int previous_frame_time = 0;
-char *model_file = "./assets/f22.obj";
+char *model_file = "./assets/cube.obj";
 
 vec3_t camera_position = {0, 0, 0};
 mat4_t proj_matrix;
@@ -115,18 +115,18 @@ void update(void)
 
     // Cambiamos los valores del mesh scale/rotation en cada frame
     mesh.rotation.x += 0.01;
-    mesh.rotation.y += 0.01;
-    // mesh.rotation.z += 0.01;
-    // mesh.scale.x += 0.002;
-    // mesh.scale.y += 0.002;
-    // mesh.scale.z += 0.005;
-    // mesh.translation.x += 0.005;
+    mesh.rotation.y += 0;
+    mesh.rotation.z += 0;
+    mesh.scale.x += 0;
+    mesh.scale.y += 0;
+    mesh.scale.z += 0;
+    mesh.translation.x += 0;
+    mesh.translation.y += 0;
     mesh.translation.z = 5.0; // Trasladamos el vértice de profundidad lejos de la cámara
 
     // Crear una matriz de escalado, rotación y traslación que utilizará el multiplicador del mesh vertices
     mat4_t scale_matrix = mat4_make_scale(mesh.scale.x, mesh.scale.y, mesh.scale.z);
-    mat4_t translation_matrix = mat4_make_translation(
-        mesh.translation.x, mesh.translation.y, mesh.translation.z);
+    mat4_t translation_matrix = mat4_make_translation(mesh.translation.x, mesh.translation.y, mesh.translation.z);
     mat4_t rotation_matrix_x = mat4_make_rotation_x(mesh.rotation.x);
     mat4_t rotation_matrix_y = mat4_make_rotation_y(mesh.rotation.y);
     mat4_t rotation_matrix_z = mat4_make_rotation_z(mesh.rotation.z);
@@ -218,6 +218,10 @@ void update(void)
             // Escalamos en la vista
             projected_points[j].x *= (window_width / 2.0);
             projected_points[j].y *= (window_height / 2.0);
+
+            // Invertimos los valores 'y' debido a los valores invertidos de la pantalla
+            // Figura 34 valores invertidos.png
+            projected_points[j].y *= -1;
 
             // Escalamos y trasladamos los puntos proyectados al centro de la pantalla
             projected_points[j].x += (window_width / 2.0);
