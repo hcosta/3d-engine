@@ -8,12 +8,16 @@
 #include "vector.h"
 #include "matrix.h"
 #include "mesh.h"
+#include "light.h"
 
 // Array de triangulos que debo renderizar frame por frame
 triangle_t *triangles_to_render = NULL;
+
 // Variables globales de estado y bucle de juego
 bool is_running = false;
 int previous_frame_time = 0;
+char *model_file = "./assets/f22.obj";
+
 vec3_t camera_position = {0, 0, 0};
 mat4_t proj_matrix;
 
@@ -42,8 +46,8 @@ void setup(void)
     proj_matrix = mat4_make_perspective(fov, aspect, znear, zfar);
 
     // Carga los valores del cubo en la estructura de mallas
-    load_cube_mesh_data();
-    //load_obj_file_data("./assets/cube.obj");
+    //load_cube_mesh_data();
+    load_obj_file_data(model_file);
 }
 
 void process_input(void)
@@ -93,24 +97,6 @@ void process_input(void)
     }
 }
 
-// // Transforma un vec3 a vec2, proyección paralela ortográfica
-// vec2_t project(vec3_t point)
-// {
-
-//     // El ratio entre los lados de triángulos similares es el mismo
-//     // Cuanto mayor es la profundidad Z, menor es el escalado
-//     // Eso genera el efecto de reducir el tamaño y dar la profundidad
-//     // Fórmulas: docs/01 Proyeccion_Perspectiva.png
-
-//     // Si no dividimos por la distancia, tendremos una perspectiva sin profundidad
-//     // como la que se utilza en juegos ortográficos e isométricos
-//     vec2_t projected_point = {
-//         .x = (fov_factor * point.x) / point.z,
-//         .y = (fov_factor * point.y) / point.z};
-
-//     return projected_point;
-// }
-
 void update(void)
 {
     // Esto genera un bucle para capar los FPS, pero consume toda la CPU
@@ -129,13 +115,13 @@ void update(void)
 
     // Cambiamos los valores del mesh scale/rotation en cada frame
     mesh.rotation.x += 0.01;
-    // mesh.rotation.y += 0.01;
+    mesh.rotation.y += 0.01;
     // mesh.rotation.z += 0.01;
     // mesh.scale.x += 0.002;
     // mesh.scale.y += 0.002;
     // mesh.scale.z += 0.005;
     // mesh.translation.x += 0.005;
-    mesh.translation.z = 7.0; // Trasladamos el vértice de profundidad lejos de la cámara
+    mesh.translation.z = 5.0; // Trasladamos el vértice de profundidad lejos de la cámara
 
     // Crear una matriz de escalado, rotación y traslación que utilizará el multiplicador del mesh vertices
     mat4_t scale_matrix = mat4_make_scale(mesh.scale.x, mesh.scale.y, mesh.scale.z);
@@ -184,40 +170,39 @@ void update(void)
             transformed_vertices[j] = transformed_vertex;
         }
 
-        // Prueba de backface culling para ver si la cara actual está proyectada
+        // Comprobamos el backface culling y la luz (si el triángulo mira la cámara para dibujarlo)
+        vec3_t vector_a = vec3_from_vec4(transformed_vertices[0]); /*   A   */
+        vec3_t vector_b = vec3_from_vec4(transformed_vertices[1]); /*  / \  */
+        vec3_t vector_c = vec3_from_vec4(transformed_vertices[2]); /* C---B */
+
+        // 1. Extraer los vectores B-A y C-A (solo nos interesa la dirección)
+        vec3_t vector_ab = vec3_sub(vector_b, vector_a);
+        vec3_t vector_ac = vec3_sub(vector_c, vector_a);
+
+        // Como añadido podemos normalizarlos
+        vec3_normalize(&vector_ab);
+        vec3_normalize(&vector_ac);
+
+        // 2. Calculamos el vector normal usando producto vectorial (face normal)
+        // Prestar atención al engine, si lo hacemos left-handed el eje Z se
+        // incrementa con la profundidad (el orden de los vectores sí importa)
+        vec3_t normal = vec3_cross(vector_ab, vector_ac);
+
+        // Es normal normalizar el vector normal (lo pasamos por referencia para optimizar)
+        vec3_normalize(&normal);
+
+        // 3. Buscamos el vector entre un punto del trángulo y el origen de la cámara
+        // Figura "docs/15 camera raycast.png"
+        vec3_t camera_ray = vec3_sub(camera_position, vector_a);
+
+        // 4. Calculamos cuán alineado está el camera_ray respecto al vector normal
+        // Utilizando para ello el producto escalar (el orden de los vectores no importa)
+        float dot_normal_camera = vec3_dot(normal, camera_ray);
+
+        // 5. Si el triángulo no está alineado con la cámara saltamos la iteración
         if (cull_method == CULL_BACKFACE)
         {
-            // Comprobamos el backface culling (si el triángulo mira la cámara para dibujarlo)
-            vec3_t vector_a = vec3_from_vec4(transformed_vertices[0]); /*   A   */
-            vec3_t vector_b = vec3_from_vec4(transformed_vertices[1]); /*  / \  */
-            vec3_t vector_c = vec3_from_vec4(transformed_vertices[2]); /* C---B */
-
-            // 1. Extraer los vectores B-A y C-A (solo nos interesa la dirección)
-            vec3_t vector_ab = vec3_sub(vector_b, vector_a);
-            vec3_t vector_ac = vec3_sub(vector_c, vector_a);
-
-            // Como añadido podemos normalizarlos
-            vec3_normalize(&vector_ab);
-            vec3_normalize(&vector_ac);
-
-            // 2. Calculamos el vector normal usando producto vectorial (face normal)
-            // Prestar atención al engine, si lo hacemos left-handed el eje Z se
-            // incrementa con la profundidad (el orden de los vectores sí importa)
-            vec3_t normal = vec3_cross(vector_ab, vector_ac);
-
-            // Es normal normalizar el vector normal (lo pasamos por referencia para optimizar)
-            vec3_normalize(&normal);
-
-            // 3. Buscamos el vector entre un punto del trángulo y el origen de la cámara
-            // Figura "docs/15 camera raycast.png"
-            vec3_t camera_ray = vec3_sub(camera_position, vector_a);
-
-            // 4. Calculamos cuán alineado está el camera_ray respecto al vector normal
-            // Utilizando para ello el producto escalar (el orden de los vectores no importa)
-            float dot_normal_camera = vec3_dot(normal, camera_ray);
-
-            // 5. Si el triángulo no está alineado con la cámara saltamos la iteración
-            // Esto ahorrará muchos cálculos al no dibujar los triángulos no alineados
+            // Backface culling, bypassing triangles that are looking away from the camera
             if (dot_normal_camera < 0)
                 continue;
         }
@@ -242,13 +227,19 @@ void update(void)
         // Calculamos la profundidad media de cada cara basada en los vértices después de transformarlos (forma un poco "hacky")
         float avg_depth = (transformed_vertices[0].z + transformed_vertices[1].z + transformed_vertices[2].z) / 3.0;
 
+        // Calculamos la intensidad del sombreado basándonos en cuán alineados están la normal de la cara del triángulo y la inversa de la luz (lo negamos por lo de que la profundidad va hacia dentro en nuestro modelo, y en cambio la luz se refleja hacia fuera a nuestra cámara, por eso si no lo negamos se nos oscurece al revés)
+        float light_intensity_factor = -vec3_dot(normal, light.direction);
+
+        // Calculamos el color del triángulo basados en el ángulo de la luz
+        uint32_t triangle_color = light_apply_intensity(mesh_face.color, light_intensity_factor);
+
         triangle_t projected_triangle = {
             .points = {
                 {projected_points[0].x, projected_points[0].y},
                 {projected_points[1].x, projected_points[1].y},
                 {projected_points[2].x, projected_points[2].y},
             },
-            .color = mesh_face.color,
+            .color = triangle_color,
             .avg_depth = avg_depth};
 
         // Guardamos el triángulo proyectado en el array de triángulos a renderizar
