@@ -3,12 +3,15 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <SDL2/SDL.h>
+
 #include "array.h"
 #include "display.h"
 #include "vector.h"
 #include "matrix.h"
+#include "triangle.h"
 #include "mesh.h"
 #include "light.h"
+#include "texture.h"
 
 // Array de triangulos que debo renderizar frame por frame
 triangle_t *triangles_to_render = NULL;
@@ -45,9 +48,14 @@ void setup(void)
     float znear = 0.1, zfar = 100.0;
     proj_matrix = mat4_make_perspective(fov, aspect, znear, zfar);
 
+    // Load the hardcoded texture array in the global mesh texture variable
+    mesh_texture = (uint32_t *)REDBRICK_TEXTURE;
+    texture_width = 64;
+    texture_height = 64;
+
     // Carga los valores del cubo en la estructura de mallas
-    //load_cube_mesh_data();
-    load_obj_file_data(model_file);
+    // load_obj_file_data("./assets/f22.obj");
+    load_cube_mesh_data();
 }
 
 void process_input(void)
@@ -63,32 +71,40 @@ void process_input(void)
     case SDL_KEYDOWN:
         if (event.key.keysym.sym == SDLK_ESCAPE)
             is_running = false;
-        else if (event.key.keysym.sym == SDLK_1)
+        if (event.key.keysym.sym == SDLK_1)
         {
             // displays the wireframe and a small red dot for each triangle vertex
             render_method = RENDER_WIRE_VERTEX;
         }
-        else if (event.key.keysym.sym == SDLK_2)
+        if (event.key.keysym.sym == SDLK_2)
         {
             // displays only the wireframe lines
             render_method = RENDER_WIRE;
         }
-        else if (event.key.keysym.sym == SDLK_3)
+        if (event.key.keysym.sym == SDLK_3)
         {
             // displays filled triangles with a solid color
             render_method = RENDER_FILL_TRIANGLE;
         }
-        else if (event.key.keysym.sym == SDLK_4)
+        if (event.key.keysym.sym == SDLK_4)
         {
             // displays both filled triangles and wireframe lines
             render_method = RENDER_FILL_TRIANGLE_WIRE;
         }
-        else if (event.key.keysym.sym == SDLK_c)
+        if (event.key.keysym.sym == SDLK_5)
+        {
+            render_method = RENDER_TEXTURED;
+        }
+        if (event.key.keysym.sym == SDLK_6)
+        {
+            render_method = RENDER_TEXTURED_WIRE;
+        }
+        if (event.key.keysym.sym == SDLK_c)
         {
             // we should enable back-face culling
             cull_method = CULL_BACKFACE;
         }
-        else if (event.key.keysym.sym == SDLK_d)
+        if (event.key.keysym.sym == SDLK_d)
         {
             // we should disable the back-face culling
             cull_method = CULL_NONE;
@@ -243,6 +259,7 @@ void update(void)
                 {projected_points[1].x, projected_points[1].y},
                 {projected_points[2].x, projected_points[2].y},
             },
+            .texcoords = {{mesh_face.a_uv.u, mesh_face.a_uv.v}, {mesh_face.b_uv.u, mesh_face.b_uv.v}, {mesh_face.c_uv.u, mesh_face.c_uv.v}},
             .color = triangle_color,
             .avg_depth = avg_depth};
 
@@ -278,6 +295,19 @@ void render(void)
     {
         triangle_t triangle = triangles_to_render[i];
 
+        // Dibujamos los bordes de cada triángulo (wireframe)
+        if (
+            render_method == RENDER_WIRE ||
+            render_method == RENDER_WIRE_VERTEX ||
+            render_method == RENDER_FILL_TRIANGLE_WIRE)
+        {
+            draw_triangle(
+                triangle.points[0].x, triangle.points[0].y, // vertex A
+                triangle.points[1].x, triangle.points[1].y, // vertex B
+                triangle.points[2].x, triangle.points[2].y, // vertex C
+                0xFFFFFFFF);
+        }
+
         // Renderizamos el relleno de cada triángulo (fill)
         if (
             render_method == RENDER_FILL_TRIANGLE ||
@@ -290,17 +320,17 @@ void render(void)
                 triangle.color);
         }
 
-        // Dibujamos los bordes de cada triángulo (wireframe)
-        if (
-            render_method == RENDER_WIRE ||
+        // Draw triangle wireframe
+        if (render_method == RENDER_WIRE ||
             render_method == RENDER_WIRE_VERTEX ||
-            render_method == RENDER_FILL_TRIANGLE_WIRE)
+            render_method == RENDER_FILL_TRIANGLE_WIRE ||
+            render_method == RENDER_TEXTURED_WIRE)
         {
-            draw_triangle(
-                triangle.points[0].x, triangle.points[0].y, // vertex A
-                triangle.points[1].x, triangle.points[1].y, // vertex B
-                triangle.points[2].x, triangle.points[2].y, // vertex C
-                0xFFFFFFFF);
+            draw_textured_triangle(
+                triangle.points[0].x, triangle.points[0].y, triangle.texcoords[0].u, triangle.texcoords[0].v, // vertex A
+                triangle.points[1].x, triangle.points[1].y, triangle.texcoords[1].u, triangle.texcoords[1].v, // vertex B
+                triangle.points[2].x, triangle.points[2].y, triangle.texcoords[2].u, triangle.texcoords[2].v, // vertex C
+                mesh_texture);
         }
 
         // Renderizamos cada uno de los tres vértices uno por uno
