@@ -28,34 +28,43 @@ mat4_t proj_matrix;
 void setup(void)
 {
     // Inicializamos el modo de renderizado y el culling
-    render_method = RENDER_WIRE;
+    render_method = RENDER_TEXTURED_WIRE;
     cull_method = CULL_BACKFACE;
 
     // Asigno bytes requeridos en memoria para el color buffer
     color_buffer = (uint32_t *)malloc(sizeof(uint32_t) * window_width * window_height);
 
-    // Creo la textura donde copiaremos el color buffer
-    color_buffer_texture = SDL_CreateTexture(
-        renderer,
-        SDL_PIXELFORMAT_ARGB8888,
-        SDL_TEXTUREACCESS_STREAMING,
-        window_width,
-        window_height);
+    if (!color_buffer)
+    {
+        // there is a possibility that malloc fails to allocate that number of bytes in memory
+        // (maybe the machine does not have enough free memory). If that happens, malloc will return a NULL pointer.
+    }
+    else
+    {
 
-    // Inicilizamos la matrix de projección de la perspectiva
-    float fov = M_PI / 3.0; // esto es lo mismo que 180/3, o 60deg (en radianos)
-    float aspect = (float)window_height / (float)window_width;
-    float znear = 0.1, zfar = 100.0;
-    proj_matrix = mat4_make_perspective(fov, aspect, znear, zfar);
+        // Creo la textura donde copiaremos el color buffer
+        color_buffer_texture = SDL_CreateTexture(
+            renderer,
+            SDL_PIXELFORMAT_ARGB8888,
+            SDL_TEXTUREACCESS_STREAMING,
+            window_width,
+            window_height);
 
-    // Load the hardcoded texture array in the global mesh texture variable
-    mesh_texture = (uint32_t *)REDBRICK_TEXTURE;
-    texture_width = 64;
-    texture_height = 64;
+        // Inicilizamos la matrix de projección de la perspectiva
+        float fov = M_PI / 3.0; // esto es lo mismo que 180/3, o 60deg (en radianos)
+        float aspect = (float)window_height / (float)window_width;
+        float znear = 0.1, zfar = 100.0;
+        proj_matrix = mat4_make_perspective(fov, aspect, znear, zfar);
 
-    // Carga los valores del cubo en la estructura de mallas
-    // load_obj_file_data("./assets/f22.obj");
-    load_cube_mesh_data();
+        // Load the hardcoded texture array in the global mesh texture variable
+        mesh_texture = (uint32_t *)REDBRICK_TEXTURE;
+        texture_width = 64;
+        texture_height = 64;
+
+        // Carga los valores del cubo en la estructura de mallas
+        // load_obj_file_data("./assets/f22.obj");
+        load_cube_mesh_data();
+    }
 }
 
 void process_input(void)
@@ -131,8 +140,8 @@ void update(void)
 
     // Cambiamos los valores del mesh scale/rotation en cada frame
     mesh.rotation.x += 0.01;
-    mesh.rotation.y += 0;
-    mesh.rotation.z += 0;
+    mesh.rotation.y += 0.01;
+    mesh.rotation.z += 0.01;
     mesh.scale.x += 0;
     mesh.scale.y += 0;
     mesh.scale.z += 0;
