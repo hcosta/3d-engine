@@ -6,6 +6,8 @@ Experimental 3d engine programmed with C language with learning purposes.
 
 <img src="/docs/demo_01.gif"/>
 
+<img src="/docs/demo_02.gif"/>
+
 ## Objetivos de estudio
 
 - Buffer de color ☑️
