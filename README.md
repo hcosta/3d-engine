@@ -23,7 +23,7 @@ Experimental 3d engine programmed with C language with learning purposes.
 - Transformaciones de matrices 3D ☑️
 - Luz y sombreado ☑️
 - Mapeado de texturas ☑️
-- Interpolación de perspectiva
+- Interpolación de perspectiva ☑️
 - Decodificación de imágenes PNG
 - Importación de ficheros OBJ con texturas
 - Z-Buffer
