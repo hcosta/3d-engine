@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <SDL2/SDL.h>
 
+#include "upng.h"
 #include "array.h"
 #include "display.h"
 #include "vector.h"
@@ -20,6 +21,7 @@ triangle_t *triangles_to_render = NULL;
 bool is_running = false;
 int previous_frame_time = 0;
 char *model_file = "./assets/cube.obj";
+char *texture_file = "./assets/cube.png";
 
 vec3_t camera_position = {0, 0, 0};
 mat4_t proj_matrix;
@@ -34,18 +36,15 @@ void setup(void)
     // Asigno bytes requeridos en memoria para el color buffer
     color_buffer = (uint32_t *)malloc(sizeof(uint32_t) * window_width * window_height);
 
-    if (!color_buffer)
-    {
-        // there is a possibility that malloc fails to allocate that number of bytes in memory
-        // (maybe the machine does not have enough free memory). If that happens, malloc will return a NULL pointer.
-    }
-    else
+    // there is a possibility that malloc fails to allocate that number of bytes in memory
+    // (maybe the machine does not have enough free memory). If that happens, malloc will return a NULL pointer.
+    if (color_buffer != NULL)
     {
 
         // Creo la textura donde copiaremos el color buffer
         color_buffer_texture = SDL_CreateTexture(
             renderer,
-            SDL_PIXELFORMAT_ARGB8888,
+            SDL_PIXELFORMAT_RGBA32,
             SDL_TEXTUREACCESS_STREAMING,
             window_width,
             window_height);
@@ -56,14 +55,12 @@ void setup(void)
         float znear = 0.1, zfar = 100.0;
         proj_matrix = mat4_make_perspective(fov, aspect, znear, zfar);
 
-        // Load the hardcoded texture array in the global mesh texture variable
-        mesh_texture = (uint32_t *)REDBRICK_TEXTURE;
-        texture_width = 64;
-        texture_height = 64;
-
         // Carga los valores del cubo en la estructura de mallas
-        // load_obj_file_data("./assets/f22.obj");
+        // load_obj_file_data(model_file);
         load_cube_mesh_data();
+
+        // Cargamos la informacion de la textura desde un PNG externo
+        load_png_texture_data(texture_file);
     }
 }
 
@@ -139,9 +136,9 @@ void update(void)
     triangles_to_render = NULL;
 
     // Cambiamos los valores del mesh scale/rotation en cada frame
-    mesh.rotation.x += 0.01;
+    mesh.rotation.x += 0.0;
     mesh.rotation.y += 0.01;
-    mesh.rotation.z += 0.01;
+    mesh.rotation.z += 0.0;
     mesh.scale.x += 0;
     mesh.scale.y += 0;
     mesh.scale.z += 0;
@@ -367,6 +364,7 @@ void free_resources(void)
     array_free(mesh.faces);
     array_free(mesh.vertices);
     free(color_buffer); // Si liberas algo que ya ha sido liberado da un error de memoria
+    upng_free(png_texture);
 }
 
 int main(int argc, char *argv[])
