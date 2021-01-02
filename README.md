@@ -4,13 +4,13 @@ Experimental 3d engine programmed with C language with learning purposes.
 
 ## Demos
 
-<div style="align:center;"><img src="/docs/demo_01.gif" width="500px"/></div>
+<div align="center"><img src="/docs/demo_01.gif" width="500px"/></div>
 
-<div style="align:center;"><img src="/docs/demo_02.gif" width="500px"/></div>
+<div align="center"><img src="/docs/demo_02.gif" width="500px"/></div>
 
-<div style="align:center;"><img src="/docs/demo_03.gif" width="500px"/></div>
+<div align="center"><img src="/docs/demo_03.gif" width="500px"/></div>
 
-<div style="align:center;"><img src="/docs/demo_04.gif" width="500px"/></div>
+<div align="center"><img src="/docs/demo_04.gif" width="500px"/></div>
 
 ## Objetivos de estudio
 
