@@ -4,9 +4,13 @@ Experimental 3d engine programmed with C language with learning purposes.
 
 ## Demos
 
-<img src="/docs/demo_01.gif"/>
+<div style="text-align:center;"><img src="/docs/demo_01.gif" width="500px"/></div>
 
-<img src="/docs/demo_02.gif"/>
+<div style="text-align:center;"><img src="/docs/demo_02.gif" width="500px"/></div>
+
+<div style="text-align:center;"><img src="/docs/demo_03.gif" width="500px"/></div>
+
+<div style="text-align:center;"><img src="/docs/demo_04.gif" width="500px"/></div>
 
 ## Objetivos de estudio
 
@@ -25,7 +29,7 @@ Experimental 3d engine programmed with C language with learning purposes.
 - Mapeado de texturas ☑️
 - Interpolación de perspectiva ☑️
 - Decodificación de imágenes PNG ☑️
-- Importación de ficheros OBJ con texturas
+- Importación de ficheros OBJ con texturas ☑️
 - Z-Buffer
 - Cámara
 - Clipping

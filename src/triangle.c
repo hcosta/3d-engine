@@ -207,6 +207,11 @@ void draw_texel(
     float beta = weights.y;
     float gamma = weights.z;
 
+    // Primera protección
+    const float EPSILON = 0.00001;
+    if (alpha < -EPSILON || beta < -EPSILON || gamma < -EPSILON)
+        return;
+
     // Variables para almacenar valores interpolados de U, V y 1/W para el píxel actual
     float interpolated_u;
     float interpolated_v;
@@ -224,12 +229,12 @@ void draw_texel(
     interpolated_v /= interpolated_reciprocal_w;
 
     // Mapeamos la coordenada UV al alto y ancho de la textura completa
-    int tex_x = abs((int)(interpolated_u * texture_width));
-    int tex_y = abs((int)(interpolated_v * texture_height));
+    int tex_x = (int)abs((interpolated_u * texture_width)) % texture_width;
+    int tex_y = (int)abs((interpolated_v * texture_height)) % texture_height;
 
-    // draw_pixel(x, y, texture[(texture_width * tex_y) * tex_x]);
-    int texIndex = ((texture_width * tex_y) + tex_x) % (texture_width * texture_height);
-    draw_pixel(x, y, texture[texIndex]);
+    //draw_pixel(x, y, texture[(texture_width * tex_y) * tex_x]);
+    int tex_index = ((texture_width * tex_y) + tex_x) % (texture_width * texture_height);
+    draw_pixel(x, y, texture[tex_index]);
 }
 
 // Dibujamos la textura del triángulo basada en el array texturizado de colores
@@ -269,6 +274,11 @@ void draw_textured_triangle(
         float_swap(&v0, &v1);
     }
 
+    // Volteamos el componente V para las coordenadas UV invertidas (V crece hacia abajo)
+    v0 = 1.0 - v0;
+    v1 = 1.0 - v1;
+    v2 = 1.0 - v2;
+
     // Aquí creamos puntos de vector y coordenadas de texturas después de ordenar los vértices
     vec4_t point_a = {x0, y0, z0, w0};
     vec4_t point_b = {x1, y1, z1, w1};
@@ -301,7 +311,7 @@ void draw_textured_triangle(
                 int_swap(&x_start, &x_end);
             }
 
-            for (int x = x_start; x < x_end; x++)
+            for (int x = x_start; x <= x_end; x++)
             {
                 // Dibujamos el texel de la sección pertinente interpolado
                 draw_texel(x, y, texture, point_a, point_b, point_c, a_uv, b_uv, c_uv);
@@ -328,7 +338,7 @@ void draw_textured_triangle(
             if (x_end < x_start)
                 int_swap(&x_start, &x_end); // intercambiamos si x_start está a la derecha de x_end
 
-            for (int x = x_start; x < x_end; x++)
+            for (int x = x_start; x <= x_end; x++)
                 // Dibujamos el texel de la sección pertinente interpolado
                 draw_texel(x, y, texture, point_a, point_b, point_c, a_uv, b_uv, c_uv);
         }

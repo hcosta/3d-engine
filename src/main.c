@@ -20,8 +20,8 @@ triangle_t *triangles_to_render = NULL;
 // Variables globales de estado y bucle de juego
 bool is_running = false;
 int previous_frame_time = 0;
-char *model_file = "./assets/cube.obj";
-char *texture_file = "./assets/cube.png";
+char *model_file = "./assets/efa.obj";
+char *texture_file = "./assets/efa.png";
 
 vec3_t camera_position = {0, 0, 0};
 mat4_t proj_matrix;
@@ -36,8 +36,8 @@ void setup(void)
     // Asigno bytes requeridos en memoria para el color buffer
     color_buffer = (uint32_t *)malloc(sizeof(uint32_t) * window_width * window_height);
 
-    // there is a possibility that malloc fails to allocate that number of bytes in memory
-    // (maybe the machine does not have enough free memory). If that happens, malloc will return a NULL pointer.
+    // There is a possibility that malloc fails to allocate that number of bytes in memory maybe the
+    // machine does not have enough free memory, if that happens malloc will return a NULL pointer.
     if (color_buffer != NULL)
     {
 
@@ -56,8 +56,8 @@ void setup(void)
         proj_matrix = mat4_make_perspective(fov, aspect, znear, zfar);
 
         // Carga los valores del cubo en la estructura de mallas
-        // load_obj_file_data(model_file);
-        load_cube_mesh_data();
+        // load_cube_mesh_data();
+        load_obj_file_data(model_file);
 
         // Cargamos la informacion de la textura desde un PNG externo
         load_png_texture_data(texture_file);
@@ -136,15 +136,15 @@ void update(void)
     triangles_to_render = NULL;
 
     // Cambiamos los valores del mesh scale/rotation en cada frame
-    mesh.rotation.x += 0.0;
-    mesh.rotation.y += 0.01;
-    mesh.rotation.z += 0.0;
+    mesh.rotation.x += 0.005;
+    mesh.rotation.y += 0.005;
+    mesh.rotation.z += 0.005;
     mesh.scale.x += 0;
     mesh.scale.y += 0;
     mesh.scale.z += 0;
     mesh.translation.x += 0;
     mesh.translation.y += 0;
-    mesh.translation.z = 6.0; // Trasladamos el vértice de profundidad lejos de la cámara
+    mesh.translation.z = 5.0; // Trasladamos el vértice de profundidad lejos de la cámara
 
     // Crear una matriz de escalado, rotación y traslación que utilizará el multiplicador del mesh vertices
     mat4_t scale_matrix = mat4_make_scale(mesh.scale.x, mesh.scale.y, mesh.scale.z);
@@ -161,9 +161,9 @@ void update(void)
         face_t mesh_face = mesh.faces[i];
 
         vec3_t face_vertices[3];
-        face_vertices[0] = mesh.vertices[mesh_face.a - 1];
-        face_vertices[1] = mesh.vertices[mesh_face.b - 1];
-        face_vertices[2] = mesh.vertices[mesh_face.c - 1];
+        face_vertices[0] = mesh.vertices[mesh_face.a];
+        face_vertices[1] = mesh.vertices[mesh_face.b];
+        face_vertices[2] = mesh.vertices[mesh_face.c];
 
         vec4_t transformed_vertices[3];
 
