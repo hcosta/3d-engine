@@ -1,13 +1,15 @@
 #include "display.h"
 
 // Globales
-bool is_fullscreen = false;
-int window_width = 1024;
-int window_height = 768;
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
 uint32_t *color_buffer = NULL;            // Puntero para array uint32 (32 bits / 4 bytes por entero)
 SDL_Texture *color_buffer_texture = NULL; // Textura SDL utilizada para mostrar en el color buffer
+float *z_buffer = NULL;
+
+bool is_fullscreen = false;
+int window_width = 1024;
+int window_height = 768;
 
 bool initialize_window(void)
 {
@@ -69,6 +71,17 @@ void clear_color_buffer(uint32_t color)
         for (int x = 0; x < window_width; x++)
         {
             color_buffer[(window_width * y) + x] = color;
+        }
+    }
+}
+
+void clear_z_buffer()
+{
+    for (int y = 0; y < window_height; y++)
+    {
+        for (int x = 0; x < window_width; x++)
+        {
+            z_buffer[(window_width * y) + x] = 1.0; // estandar de la industria, crece hacia adentro
         }
     }
 }

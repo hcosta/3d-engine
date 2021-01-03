@@ -20,8 +20,8 @@ triangle_t *triangles_to_render = NULL;
 // Variables globales de estado y bucle de juego
 bool is_running = false;
 int previous_frame_time = 0;
-char *model_file = "./assets/efa.obj";
-char *texture_file = "./assets/efa.png";
+char *model_file = "./assets/f117.obj";
+char *texture_file = "./assets/f117.png";
 
 vec3_t camera_position = {0, 0, 0};
 mat4_t proj_matrix;
@@ -33,14 +33,14 @@ void setup(void)
     render_method = RENDER_TEXTURED_WIRE;
     cull_method = CULL_BACKFACE;
 
-    // Asigno bytes requeridos en memoria para el color buffer
+    // Asigno bytes requeridos en memoria para el color buffer y el z-buffer
     color_buffer = (uint32_t *)malloc(sizeof(uint32_t) * window_width * window_height);
+    z_buffer = (float *)malloc(sizeof(float) * window_width * window_height);
 
     // There is a possibility that malloc fails to allocate that number of bytes in memory maybe the
     // machine does not have enough free memory, if that happens malloc will return a NULL pointer.
     if (color_buffer != NULL)
     {
-
         // Creo la textura donde copiaremos el color buffer
         color_buffer_texture = SDL_CreateTexture(
             renderer,
@@ -250,9 +250,6 @@ void update(void)
             projected_points[j].y += (window_height / 2.0);
         }
 
-        // Calculamos la profundidad media de cada cara basada en los vértices después de transformarlos (forma un poco "hacky")
-        float avg_depth = (transformed_vertices[0].z + transformed_vertices[1].z + transformed_vertices[2].z) / 3.0;
-
         // Calculamos la intensidad del sombreado basándonos en cuán alineados están la normal de la cara del triángulo y la inversa de la luz (lo negamos por lo de que la profundidad va hacia dentro en nuestro modelo, y en cambio la luz se refleja hacia fuera a nuestra cámara, por eso si no lo negamos se nos oscurece al revés)
         float light_intensity_factor = -vec3_dot(normal, light.direction);
 
@@ -266,26 +263,10 @@ void update(void)
                 {projected_points[2].x, projected_points[2].y, projected_points[2].z, projected_points[2].w},
             },
             .texcoords = {{mesh_face.a_uv.u, mesh_face.a_uv.v}, {mesh_face.b_uv.u, mesh_face.b_uv.v}, {mesh_face.c_uv.u, mesh_face.c_uv.v}},
-            .color = triangle_color,
-            .avg_depth = avg_depth};
+            .color = triangle_color};
 
         // Guardamos el triángulo proyectado en el array de triángulos a renderizar
         array_push(triangles_to_render, projected_triangle);
-    }
-
-    // Ordenamos los triángulos a renderizar en base a su profundidad media
-    // Podemos hacer un típico algoritmo de burbuja intercambiando valores
-    for (int i = 0; i < array_length(triangles_to_render); i++)
-    {
-        for (int j = 0; j < array_length(triangles_to_render); j++)
-        {
-            if (triangles_to_render[j].avg_depth > triangles_to_render[i].avg_depth)
-            {
-                triangle_t tmp = triangles_to_render[i];
-                triangles_to_render[i] = triangles_to_render[j];
-                triangles_to_render[j] = tmp;
-            }
-        }
     }
 }
 
@@ -301,35 +282,19 @@ void render(void)
     {
         triangle_t triangle = triangles_to_render[i];
 
-        // Dibujamos los bordes de cada triángulo (wireframe)
-        if (
-            render_method == RENDER_WIRE ||
-            render_method == RENDER_WIRE_VERTEX ||
-            render_method == RENDER_FILL_TRIANGLE_WIRE)
-        {
-            draw_triangle(
-                triangle.points[0].x, triangle.points[0].y, // vertex A
-                triangle.points[1].x, triangle.points[1].y, // vertex B
-                triangle.points[2].x, triangle.points[2].y, // vertex C
-                0xFFFFFFFF);
-        }
-
         // Draw filled triangle
-        if (
-            render_method == RENDER_FILL_TRIANGLE ||
+        if (render_method == RENDER_FILL_TRIANGLE ||
             render_method == RENDER_FILL_TRIANGLE_WIRE)
         {
             draw_filled_triangle(
-                triangle.points[0].x, triangle.points[0].y, // vertex A
-                triangle.points[1].x, triangle.points[1].y, // vertex B
-                triangle.points[2].x, triangle.points[2].y, // vertex C
+                triangle.points[0].x, triangle.points[0].y, triangle.points[0].z, triangle.points[0].w, // vertex A
+                triangle.points[1].x, triangle.points[1].y, triangle.points[1].z, triangle.points[1].w, // vertex B
+                triangle.points[2].x, triangle.points[2].y, triangle.points[2].z, triangle.points[2].w, // vertex C
                 triangle.color);
         }
 
-        // Draw textured wireframe
-        if (render_method == RENDER_WIRE ||
-            render_method == RENDER_WIRE_VERTEX ||
-            render_method == RENDER_FILL_TRIANGLE_WIRE ||
+        // Draw textured triangle
+        if (render_method == RENDER_TEXTURED ||
             render_method == RENDER_TEXTURED_WIRE)
         {
             draw_textured_triangle(
@@ -340,11 +305,24 @@ void render(void)
         }
 
         // Draw triangle wireframe
+        if (render_method == RENDER_WIRE ||
+            render_method == RENDER_WIRE_VERTEX ||
+            render_method == RENDER_FILL_TRIANGLE_WIRE ||
+            render_method == RENDER_TEXTURED_WIRE)
+        {
+            draw_triangle(
+                triangle.points[0].x, triangle.points[0].y, // vertex A
+                triangle.points[1].x, triangle.points[1].y, // vertex B
+                triangle.points[2].x, triangle.points[2].y, // vertex C
+                0xFFFFFFFF);
+        }
+
+        // // Draw triangle vertex points
         if (render_method == RENDER_WIRE_VERTEX)
         {
-            draw_rect(triangle.points[0].x, triangle.points[0].y, 3, 3, 0xFFFF0000);
-            draw_rect(triangle.points[1].x, triangle.points[1].y, 3, 3, 0xFFFF0000);
-            draw_rect(triangle.points[2].x, triangle.points[2].y, 3, 3, 0xFFFF0000);
+            draw_rect(triangle.points[0].x - 3, triangle.points[0].y - 3, 6, 6, 0xFF0000FF); // vertex A
+            draw_rect(triangle.points[1].x - 3, triangle.points[1].y - 3, 6, 6, 0xFF0000FF); // vertex B
+            draw_rect(triangle.points[2].x - 3, triangle.points[2].y - 3, 6, 6, 0xFF0000FF); // vertex C
         }
     }
 
@@ -354,6 +332,7 @@ void render(void)
     // Copiamos el color buffer a la textura y lo limpiamos
     render_color_buffer();
     clear_color_buffer(0xFF000000);
+    clear_z_buffer();
 
     SDL_RenderPresent(renderer);
 }
@@ -364,6 +343,7 @@ void free_resources(void)
     array_free(mesh.faces);
     array_free(mesh.vertices);
     free(color_buffer); // Si liberas algo que ya ha sido liberado da un error de memoria
+    free(z_buffer);
     upng_free(png_texture);
 }
 
