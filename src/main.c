@@ -15,13 +15,15 @@
 #include "texture.h"
 
 // Array de triangulos que debo renderizar frame por frame
-triangle_t *triangles_to_render = NULL;
+#define MAX_TRIANGLES_PER_MESH 10000
+triangle_t triangles_to_render[MAX_TRIANGLES_PER_MESH];
+int num_triangles_to_render = 0;
 
 // Variables globales de estado y bucle de juego
 bool is_running = false;
 int previous_frame_time = 0;
-char *model_file = "./assets/f117.obj";
-char *texture_file = "./assets/f117.png";
+char *model_file = "./assets/drone.obj";
+char *texture_file = "./assets/drone.png";
 
 vec3_t camera_position = {0, 0, 0};
 mat4_t proj_matrix;
@@ -30,7 +32,7 @@ mat4_t proj_matrix;
 void setup(void)
 {
     // Inicializamos el modo de renderizado y el culling
-    render_method = RENDER_TEXTURED_WIRE;
+    render_method = RENDER_TEXTURED;
     cull_method = CULL_BACKFACE;
 
     // Asigno bytes requeridos en memoria para el color buffer y el z-buffer
@@ -132,8 +134,8 @@ void update(void)
     // Cuantos milisegundos han pasado desde que empieza el juego
     previous_frame_time = SDL_GetTicks();
 
-    // Inicializamos el array de triángulos a renderizar
-    triangles_to_render = NULL;
+    // Reiniciamos el numero de triángulos a dibujar en el frame actual
+    num_triangles_to_render = 0;
 
     // Cambiamos los valores del mesh scale/rotation en cada frame
     mesh.rotation.x += 0.005;
@@ -266,7 +268,14 @@ void update(void)
             .color = triangle_color};
 
         // Guardamos el triángulo proyectado en el array de triángulos a renderizar
-        array_push(triangles_to_render, projected_triangle);
+        // almacenar datos en memoria y borrarlos así es muy cpu dependiente, gasta mucho
+        //array_push(triangles_to_render, projected_triangle);
+        // mil veces mejor hacerlo en memoria reservada
+        if (num_triangles_to_render < MAX_TRIANGLES_PER_MESH)
+        {
+            triangles_to_render[num_triangles_to_render] = projected_triangle;
+            num_triangles_to_render++;
+        }
     }
 }
 
@@ -275,10 +284,8 @@ void render(void)
     // Dibujamos la cuadrícula
     draw_grid();
 
-    int num_triangles = array_length(triangles_to_render);
-
     // Iteramos los triángulos a renderizar
-    for (int i = 0; i < num_triangles; i++)
+    for (int i = 0; i < num_triangles_to_render; i++)
     {
         triangle_t triangle = triangles_to_render[i];
 
@@ -327,7 +334,8 @@ void render(void)
     }
 
     // Liberamos el array de triángulos en cada frame
-    array_free(triangles_to_render);
+    // Ya no usamos esto, lo desactivamos
+    // array_free(triangles_to_render);
 
     // Copiamos el color buffer a la textura y lo limpiamos
     render_color_buffer();
