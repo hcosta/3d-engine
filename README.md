@@ -31,6 +31,7 @@ Experimental 3d engine programmed with C language with learning purposes.
 - Decodificación de imágenes PNG ☑️
 - Importación de ficheros OBJ con texturas ☑️
 - Z-Buffer ☑️
-- Cámara
+- Cámara LookAt ☑️
+- Cámara FPS
 - Clipping
 - Múltiples mallas

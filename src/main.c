@@ -9,6 +9,7 @@
 #include "display.h"
 #include "vector.h"
 #include "matrix.h"
+#include "camera.h"
 #include "triangle.h"
 #include "mesh.h"
 #include "light.h"
@@ -22,11 +23,14 @@ int num_triangles_to_render = 0;
 // Variables globales de estado y bucle de juego
 bool is_running = false;
 int previous_frame_time = 0;
-char *model_file = "./assets/drone.obj";
-char *texture_file = "./assets/drone.png";
+float delta_time = 0;
+char *model_file = "./assets/cube.obj";
+char *texture_file = "./assets/hektor.png";
 
-vec3_t camera_position = {0, 0, 0};
+// Matrices de transformación globales
 mat4_t proj_matrix;
+mat4_t world_matrix;
+mat4_t view_matrix;
 
 // La función setup inicializa variables y objetos del juego
 void setup(void)
@@ -64,6 +68,11 @@ void setup(void)
         // Cargamos la informacion de la textura desde un PNG externo
         load_png_texture_data(texture_file);
     }
+
+    // Experimental camera initial position
+    camera.position.x = 5.0;
+    camera.position.y = 0.0;
+    camera.position.z = 0.0;
 }
 
 void process_input(void)
@@ -131,6 +140,10 @@ void update(void)
     if (time_to_wait > 0 && time_to_wait <= FRAME_TARGET_TIME)
         SDL_Delay(time_to_wait);
 
+    // Diferencia de tiempo entre fotogramas en milisegundos
+    // Lo transformaremos a segundos para actualizar nuestros objetos de juego
+    delta_time = (SDL_GetTicks() - previous_frame_time) / 1000.0;
+
     // Cuantos milisegundos han pasado desde que empieza el juego
     previous_frame_time = SDL_GetTicks();
 
@@ -138,15 +151,28 @@ void update(void)
     num_triangles_to_render = 0;
 
     // Cambiamos los valores del mesh scale/rotation en cada frame
-    mesh.rotation.x += 0.005;
-    mesh.rotation.y += 0.005;
-    mesh.rotation.z += 0.005;
-    mesh.scale.x += 0;
-    mesh.scale.y += 0;
-    mesh.scale.z += 0;
-    mesh.translation.x += 0;
-    mesh.translation.y += 0;
-    mesh.translation.z = 5.0; // Trasladamos el vértice de profundidad lejos de la cámara
+    mesh.rotation.x += 0.0 * delta_time; // 1 pixel por segundo
+    mesh.rotation.y += 0.0 * delta_time;
+    mesh.rotation.z += 0.0 * delta_time;
+
+    // mesh.scale.x += 0.0 * delta_time;
+    // mesh.scale.y += 0.0 * delta_time;
+    // mesh.scale.z += 0.0 * delta_time;
+
+    // mesh.translation.x += 0.0 * delta_time;
+    // mesh.translation.y += 0.0 * delta_time;
+
+    mesh.translation.z = 4.0; // Trasladamos el vértice de profundidad lejos de la cámara
+
+    // Cambiamos la posición de la cámara en cada fotograma
+    camera.position.x += 0.0 * delta_time;
+    camera.position.y += 0.0 * delta_time;
+    camera.position.z += 0.0 * delta_time;
+
+    // Crear la matriz de vista (view) mirandolo hacia (lookAt) un punto hardcodado
+    vec3_t target = {0, 0, 4.0}; // justo donde renderizamos el modelo
+    vec3_t up_direction = {0, 1, 0};
+    view_matrix = mat4_look_at(camera.position, target, up_direction);
 
     // Crear una matriz de escalado, rotación y traslación que utilizará el multiplicador del mesh vertices
     mat4_t scale_matrix = mat4_make_scale(mesh.scale.x, mesh.scale.y, mesh.scale.z);
@@ -175,7 +201,7 @@ void update(void)
             vec4_t transformed_vertex = vec4_from_vec3(face_vertices[j]);
 
             // Creamos una matriz de mundo combinando escalado, rotación y traslación de matrices
-            mat4_t world_matrix = mat4_identity();
+            world_matrix = mat4_identity();
 
             // Multiplicamos todas las matrices para cargar la matriz de mundo
             // La matriz de la izquierda es la que transforma la matriz de la derecha
@@ -190,6 +216,10 @@ void update(void)
 
             // Multiplicamos la matriz de mundo por el vector original del vertice
             transformed_vertex = mat4_mul_vec4(world_matrix, transformed_vertex);
+
+            // Multipicamos la matriz de vista por el vector para transformar la escena a al espacio de la cámara
+            transformed_vertex = mat4_mul_vec4(view_matrix, transformed_vertex);
+
             // Guardamos el vértice transformado en el array
             transformed_vertices[j] = transformed_vertex;
         }
@@ -199,25 +229,23 @@ void update(void)
         vec3_t vector_b = vec3_from_vec4(transformed_vertices[1]); /*  / \  */
         vec3_t vector_c = vec3_from_vec4(transformed_vertices[2]); /* C---B */
 
-        // 1. Extraer los vectores B-A y C-A (solo nos interesa la dirección)
+        // 1. Extraer vectores B-A y C-A y normalizamos (solo interesa la dirección)
         vec3_t vector_ab = vec3_sub(vector_b, vector_a);
         vec3_t vector_ac = vec3_sub(vector_c, vector_a);
-
-        // Como añadido podemos normalizarlos
         vec3_normalize(&vector_ab);
         vec3_normalize(&vector_ac);
 
         // 2. Calculamos el vector normal usando producto vectorial (face normal)
         // Prestar atención al engine, si lo hacemos left-handed el eje Z se
-        // incrementa con la profundidad (el orden de los vectores sí importa)
+        // incrementa con la profundidad (el orden de los vectores sí importa),
+        // normalizar el vector normal (lo pasamos por referencia para optimizar)
         vec3_t normal = vec3_cross(vector_ab, vector_ac);
-
-        // Es normal normalizar el vector normal (lo pasamos por referencia para optimizar)
         vec3_normalize(&normal);
 
         // 3. Buscamos el vector entre un punto del trángulo y el origen de la cámara
         // Figura "docs/15 camera raycast.png"
-        vec3_t camera_ray = vec3_sub(camera_position, vector_a);
+        vec3_t origin = {0, 0, 0};
+        vec3_t camera_ray = vec3_sub(origin, vector_a);
 
         // 4. Calculamos cuán alineado está el camera_ray respecto al vector normal
         // Utilizando para ello el producto escalar (el orden de los vectores no importa)
