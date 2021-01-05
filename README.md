@@ -32,6 +32,6 @@ Experimental 3d engine programmed with C language with learning purposes.
 - Importación de ficheros OBJ con texturas ☑️
 - Z-Buffer ☑️
 - Cámara LookAt ☑️
-- Cámara FPS
+- Cámara FPS ☑️
 - Clipping
 - Múltiples mallas

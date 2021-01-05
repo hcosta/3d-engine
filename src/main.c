@@ -24,8 +24,8 @@ int num_triangles_to_render = 0;
 bool is_running = false;
 int previous_frame_time = 0;
 float delta_time = 0;
-char *model_file = "./assets/cube.obj";
-char *texture_file = "./assets/hektor.png";
+char *model_file = "./assets/efa.obj";
+char *texture_file = "./assets/efa.png";
 
 // Matrices de transformación globales
 mat4_t proj_matrix;
@@ -70,7 +70,7 @@ void setup(void)
     }
 
     // Experimental camera initial position
-    camera.position.x = 5.0;
+    camera.position.x = 0.0;
     camera.position.y = 0.0;
     camera.position.z = 0.0;
 }
@@ -88,43 +88,39 @@ void process_input(void)
     case SDL_KEYDOWN:
         if (event.key.keysym.sym == SDLK_ESCAPE)
             is_running = false;
-        if (event.key.keysym.sym == SDLK_1)
-        {
-            // displays the wireframe and a small red dot for each triangle vertex
+        if (event.key.keysym.sym == SDLK_1) // wireframe and each triangle vertex
             render_method = RENDER_WIRE_VERTEX;
-        }
-        if (event.key.keysym.sym == SDLK_2)
-        {
-            // displays only the wireframe lines
+        if (event.key.keysym.sym == SDLK_2) // only the wireframe lines
             render_method = RENDER_WIRE;
-        }
-        if (event.key.keysym.sym == SDLK_3)
-        {
-            // displays filled triangles with a solid color
+        if (event.key.keysym.sym == SDLK_3) // filled triangles with a solid color
             render_method = RENDER_FILL_TRIANGLE;
-        }
-        if (event.key.keysym.sym == SDLK_4)
-        {
-            // displays both filled triangles and wireframe lines
+        if (event.key.keysym.sym == SDLK_4) // filled triangles and wireframe lines
             render_method = RENDER_FILL_TRIANGLE_WIRE;
-        }
-        if (event.key.keysym.sym == SDLK_5)
-        {
+        if (event.key.keysym.sym == SDLK_5) // render triangle texture
             render_method = RENDER_TEXTURED;
-        }
-        if (event.key.keysym.sym == SDLK_6)
-        {
+        if (event.key.keysym.sym == SDLK_6) // render triangle texture and wireframe
             render_method = RENDER_TEXTURED_WIRE;
-        }
-        if (event.key.keysym.sym == SDLK_c)
-        {
-            // we should enable back-face culling
+        if (event.key.keysym.sym == SDLK_c) // we should enable back-face culling
             cull_method = CULL_BACKFACE;
-        }
-        if (event.key.keysym.sym == SDLK_d)
-        {
-            // we should disable the back-face culling
+        if (event.key.keysym.sym == SDLK_x) // we should disable the back-face culling
             cull_method = CULL_NONE;
+        if (event.key.keysym.sym == SDLK_UP) // move up
+            camera.position.y += 3.0 * delta_time;
+        if (event.key.keysym.sym == SDLK_DOWN) // move down
+            camera.position.y -= 3.0 * delta_time;
+        if (event.key.keysym.sym == SDLK_a) // rotation radians/sec
+            camera.yaw -= 1.0 * delta_time;
+        if (event.key.keysym.sym == SDLK_d) // rotation radians/secX
+            camera.yaw += 1.0 * delta_time;
+        if (event.key.keysym.sym == SDLK_w) // forward
+        {
+            camera.forward_velocity = vec3_mul(camera.direction, 5.0 * delta_time);
+            camera.position = vec3_add(camera.position, camera.forward_velocity);
+        }
+        if (event.key.keysym.sym == SDLK_s) // backward
+        {
+            camera.forward_velocity = vec3_mul(camera.direction, 5.0 * delta_time);
+            camera.position = vec3_sub(camera.position, camera.forward_velocity);
         }
         break;
     }
@@ -162,16 +158,28 @@ void update(void)
     // mesh.translation.x += 0.0 * delta_time;
     // mesh.translation.y += 0.0 * delta_time;
 
-    mesh.translation.z = 4.0; // Trasladamos el vértice de profundidad lejos de la cámara
+    mesh.translation.z = 5.0; // Trasladamos el vértice de profundidad lejos de la cámara
 
     // Cambiamos la posición de la cámara en cada fotograma
-    camera.position.x += 0.0 * delta_time;
-    camera.position.y += 0.0 * delta_time;
-    camera.position.z += 0.0 * delta_time;
+    // camera.position.x += 0.0 * delta_time;
+    // camera.position.y += 0.0 * delta_time;
+    // camera.position.z += 0.0 * delta_time;
 
-    // Crear la matriz de vista (view) mirandolo hacia (lookAt) un punto hardcodado
-    vec3_t target = {0, 0, 4.0}; // justo donde renderizamos el modelo
+    /////// Crear la matriz de vista (view) ///// YA NO mirandolo hacia (lookAt) un punto hardcodado
+    /////// vec3_t target = {0, 0, 5.0}; // justo donde renderizamos el modelo
+
+    // Calculamos la rotación de la nueva cámara FPS y su traslación
+
+    // Creamos la matriz de rotación
+    vec3_t target = {0, 0, 1}; //Inicializamos el target mirando el eje-z positivo
+    mat4_t camera_yaw_rotation = mat4_make_rotation_y(camera.yaw);
+    camera.direction = vec3_from_vec4(mat4_mul_vec4(camera_yaw_rotation, vec4_from_vec3(target)));
+
+    // Offseteamos la posicion de la cámara en la dirección hacia donde ella mira
+    target = vec3_add(camera.position, camera.direction);
     vec3_t up_direction = {0, 1, 0};
+
+    // Creamos la matriz de vista
     view_matrix = mat4_look_at(camera.position, target, up_direction);
 
     // Crear una matriz de escalado, rotación y traslación que utilizará el multiplicador del mesh vertices
