@@ -7,7 +7,7 @@ Experimental 3d engine programmed with C language with learning purposes.
 <div align="center"><img src="/docs/demo_01.gif" width="500px"/></div>
 
 <div align="center"><img src="/docs/demo_02.gif" width="500px"/></div>
-<!--<div align="center"><img src="/docs/demo_03.gif" width="500px"/></div>-<>
+<!--<div align="center"><img src="/docs/demo_03.gif" width="500px"/></div>-->
 
 <div align="center"><img src="/docs/demo_04.gif" width="500px"/></div>
 
@@ -33,5 +33,5 @@ Experimental 3d engine programmed with C language with learning purposes.
 - Cámara LookAt ☑️
 - Cámara FPS ☑️
 - Clipping
-- Múltiples mallas
 - Refactorización
+- Múltiples mallas
