@@ -7,6 +7,7 @@
 #include "upng.h"
 #include "array.h"
 #include "display.h"
+#include "clipping.h"
 #include "vector.h"
 #include "matrix.h"
 #include "camera.h"
@@ -24,8 +25,8 @@ int num_triangles_to_render = 0;
 bool is_running = false;
 int previous_frame_time = 0;
 float delta_time = 0;
-char *model_file = "./assets/efa.obj";
-char *texture_file = "./assets/efa.png";
+char *model_file = "./assets/cube.obj";
+char *texture_file = "./assets/cube.png";
 
 // Matrices de transformación globales
 mat4_t proj_matrix;
@@ -58,8 +59,12 @@ void setup(void)
         // Inicilizamos la matrix de projección de la perspectiva
         float fov = M_PI / 3.0; // esto es lo mismo que 180/3, o 60deg (en radianos)
         float aspect = (float)window_height / (float)window_width;
-        float znear = 0.1, zfar = 100.0;
-        proj_matrix = mat4_make_perspective(fov, aspect, znear, zfar);
+        float z_near = 0.1;
+        float z_far = 100.0;
+        proj_matrix = mat4_make_perspective(fov, aspect, z_near, z_far);
+
+        // Inicializamos los planos del frustum con un punto a y una normal a
+        init_frustum_planes(fov, z_near, z_far);
 
         // Carga los valores del cubo en la estructura de mallas
         // load_cube_mesh_data();
@@ -105,9 +110,9 @@ void process_input(void)
         if (event.key.keysym.sym == SDLK_x) // we should disable the back-face culling
             cull_method = CULL_NONE;
         if (event.key.keysym.sym == SDLK_UP) // move up
-            camera.position.y += 3.0 * delta_time;
-        if (event.key.keysym.sym == SDLK_DOWN) // move down
             camera.position.y -= 3.0 * delta_time;
+        if (event.key.keysym.sym == SDLK_DOWN) // move down
+            camera.position.y += 3.0 * delta_time;
         if (event.key.keysym.sym == SDLK_a) // rotation radians/sec
             camera.yaw -= 1.0 * delta_time;
         if (event.key.keysym.sym == SDLK_d) // rotation radians/secX
@@ -194,6 +199,9 @@ void update(void)
 
     for (int i = 0; i < num_faces; i++)
     {
+        if (i != 4)
+            continue;
+
         face_t mesh_face = mesh.faces[i];
 
         vec3_t face_vertices[3];
@@ -266,6 +274,18 @@ void update(void)
             if (dot_normal_camera < 0)
                 continue;
         }
+
+        // Clipping!!
+        // Creamos un polígono a partir del triángulo original transformado
+        polygon_t polygon = create_polygon_from_triangle(
+            vec3_from_vec4(transformed_vertices[0]),
+            vec3_from_vec4(transformed_vertices[1]),
+            vec3_from_vec4(transformed_vertices[2]));
+
+        // Clipeamos el polígono y retornmos el nuevo polígono con potenciales nuevos vértices
+        clip_polygon(&polygon);
+
+        // TODO: Después del clipping tenemos que romper el poligono en triángulos
 
         // PROYECCIONES: Iteramos los 3 vértices de la cara actual
         vec4_t projected_points[3];

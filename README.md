@@ -7,12 +7,11 @@ Experimental 3d engine programmed with C language with learning purposes.
 <div align="center"><img src="/docs/demo_01.gif" width="500px"/></div>
 
 <div align="center"><img src="/docs/demo_02.gif" width="500px"/></div>
-
-<div align="center"><img src="/docs/demo_03.gif" width="500px"/></div>
+<!--<div align="center"><img src="/docs/demo_03.gif" width="500px"/></div>-<>
 
 <div align="center"><img src="/docs/demo_04.gif" width="500px"/></div>
 
-## Objetivos de estudio
+## Temas de estudio
 
 - Buffer de color ☑️
 - Vectores y puntos ☑️
@@ -35,3 +34,4 @@ Experimental 3d engine programmed with C language with learning purposes.
 - Cámara FPS ☑️
 - Clipping
 - Múltiples mallas
+- Refactorización
