@@ -107,7 +107,7 @@ void draw_grid(void)
         for (int x = 0; x < window_width; x += 10)
         {
             if (x != 0 && y != 0) // Esto esconde la primera fila y columna
-                color_buffer[(window_width * y) + x] = 0xFF333333;
+                color_buffer[(window_width * y) + x] = 0xFF444444;
         }
     }
 }
@@ -117,7 +117,7 @@ void draw_pixel(int x, int y, uint32_t color)
     // Dibujamos el píxel si está dentro de la ventana
     if (x >= 0 && x < window_width && y >= 0 && y < window_height)
     {
-        color_buffer[window_width * y + x] = color;
+        color_buffer[(window_width * y) + x] = color;
     }
 }
 

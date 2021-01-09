@@ -17,16 +17,16 @@
 #include "texture.h"
 
 // Array de triangulos que debo renderizar frame por frame
-#define MAX_TRIANGLES_PER_MESH 10000
-triangle_t triangles_to_render[MAX_TRIANGLES_PER_MESH];
+#define MAX_TRIANGLES 10000
+triangle_t triangles_to_render[MAX_TRIANGLES];
 int num_triangles_to_render = 0;
 
 // Variables globales de estado y bucle de juego
 bool is_running = false;
 int previous_frame_time = 0;
 float delta_time = 0;
-char *model_file = "./assets/cube.obj";
-char *texture_file = "./assets/cube.png";
+char *model_file = "./assets/efa.obj";
+char *texture_file = "./assets/efa.png";
 
 // Matrices de transformación globales
 mat4_t proj_matrix;
@@ -61,8 +61,8 @@ void setup(void)
         float aspect_y = (float)window_height / (float)window_width;
         float fov_y = M_PI / 3.0; // esto es lo mismo que 180/3, o 60deg (en radianos)
         float fov_x = atan(tan(fov_y / 2) * aspect_x) * 2;
-        float z_near = 0.1;
-        float z_far = 100.0;
+        float z_near = 0.0001; // esto tiene que ser muy pequeño
+        float z_far = 8.0;
         proj_matrix = mat4_make_perspective(fov_y, aspect_y, z_near, z_far);
 
         // Inicializamos los planos del frustum con un punto a y una normal a
@@ -75,27 +75,21 @@ void setup(void)
         // Cargamos la informacion de la textura desde un PNG externo
         load_png_texture_data(texture_file);
     }
-
-    // Experimental camera initial position
-    camera.position.x = 0.0;
-    camera.position.y = 0.0;
-    camera.position.z = 0.0;
 }
 
 void process_input(void)
 {
-    SDL_Event event;
 
     const uint8_t *keystates = SDL_GetKeyboardState(NULL);
 
     if (keystates[SDL_SCANCODE_W]) // move up
-        camera.position.y -= 1.0 * delta_time;
-    if (keystates[SDL_SCANCODE_S]) // move down
         camera.position.y += 1.0 * delta_time;
+    if (keystates[SDL_SCANCODE_S]) // move down
+        camera.position.y -= 1.0 * delta_time;
     if (keystates[SDL_SCANCODE_A]) // rotation radians/sec
-        camera.yaw += 0.25 * delta_time;
-    if (keystates[SDL_SCANCODE_D]) // rotation radians/secX
         camera.yaw -= 0.25 * delta_time;
+    if (keystates[SDL_SCANCODE_D]) // rotation radians/secX
+        camera.yaw += 0.25 * delta_time;
     if (keystates[SDL_SCANCODE_UP]) // forward
     {
         camera.forward_velocity = vec3_mul(camera.direction, 1.5 * delta_time);
@@ -107,6 +101,7 @@ void process_input(void)
         camera.position = vec3_sub(camera.position, camera.forward_velocity);
     }
 
+    SDL_Event event;
     SDL_PollEvent(&event);
     switch (event.type)
     {
@@ -157,9 +152,9 @@ void update(void)
     num_triangles_to_render = 0;
 
     // Cambiamos los valores del mesh scale/rotation en cada frame
-    mesh.rotation.x += 0.0 * delta_time; // 1 pixel por segundo
-    mesh.rotation.y += 0.0 * delta_time;
-    mesh.rotation.z += 0.0 * delta_time;
+    mesh.rotation.x += 0.1 * delta_time; // 1 pixel por segundo
+    mesh.rotation.y += 0.1 * delta_time;
+    mesh.rotation.z += 0.1 * delta_time;
 
     // mesh.scale.x += 0.0 * delta_time;
     // mesh.scale.y += 0.0 * delta_time;
@@ -201,10 +196,8 @@ void update(void)
 
     // Iteramos todas las caras de la malla
     int num_faces = array_length(mesh.faces);
-
     for (int i = 0; i < num_faces; i++)
     {
-
         face_t mesh_face = mesh.faces[i];
 
         vec3_t face_vertices[3];
@@ -215,6 +208,7 @@ void update(void)
         vec4_t transformed_vertices[3];
 
         // TRANSFORMACIONES: Iteramos los 3 vértices de la cara actual
+        // Loop all three vertices of this current face and apply transformations
         for (int j = 0; j < 3; j++)
         {
             vec4_t transformed_vertex = vec4_from_vec3(face_vertices[j]);
@@ -283,11 +277,13 @@ void update(void)
         polygon_t polygon = polygon_from_triangle(
             vec3_from_vec4(transformed_vertices[0]),
             vec3_from_vec4(transformed_vertices[1]),
-            vec3_from_vec4(transformed_vertices[2]));
+            vec3_from_vec4(transformed_vertices[2]),
+            mesh_face.a_uv,
+            mesh_face.b_uv,
+            mesh_face.c_uv);
 
         // Clipeamos el polígono y retornmos el nuevo polígono con potenciales nuevos vértices
         clip_polygon(&polygon);
-        //printf("%d\n", polygon.num_vertices);
 
         // Después del clipping tenemos que romper el poligono en triángulos
         triangle_t triangles_after_clipping[MAX_NUM_POLY_TRIANGLES];
@@ -306,17 +302,25 @@ void update(void)
             for (int j = 0; j < 3; j++)
             {
                 // Proyectamos el vértice
-                projected_points[j] = mat4_mul_vec4_project(proj_matrix, triangle_after_clipping.points[j]);
+                projected_points[j] = mat4_mul_vec4(proj_matrix, triangle_after_clipping.points[j]);
 
-                // Escalamos en la vista
-                projected_points[j].x *= (window_width / 2.0);
-                projected_points[j].y *= (window_height / 2.0);
+                // Ejecutamos la división de la perspectiva
+                if (projected_points[j].w != 0)
+                {
+                    projected_points[j].x /= projected_points[j].w;
+                    projected_points[j].y /= projected_points[j].w;
+                    projected_points[j].z /= projected_points[j].w;
+                }
 
                 // Invertimos los valores 'y' debido a los valores invertidos de la pantalla
                 // Figura 34 valores invertidos.png
                 projected_points[j].y *= -1;
 
-                // Escalamos y trasladamos los puntos proyectados al centro de la pantalla
+                // Escalamos en la vista
+                projected_points[j].x *= (window_width / 2.0);
+                projected_points[j].y *= (window_height / 2.0);
+
+                // Trasladamos los puntos proyectados al centro de la pantalla
                 projected_points[j].x += (window_width / 2.0);
                 projected_points[j].y += (window_height / 2.0);
             }
@@ -333,17 +337,20 @@ void update(void)
                     {projected_points[1].x, projected_points[1].y, projected_points[1].z, projected_points[1].w},
                     {projected_points[2].x, projected_points[2].y, projected_points[2].z, projected_points[2].w},
                 },
-                .texcoords = {{mesh_face.a_uv.u, mesh_face.a_uv.v}, {mesh_face.b_uv.u, mesh_face.b_uv.v}, {mesh_face.c_uv.u, mesh_face.c_uv.v}},
+                .texcoords = {
+                    {triangle_after_clipping.texcoords[0].u, triangle_after_clipping.texcoords[0].v},
+                    {triangle_after_clipping.texcoords[1].u, triangle_after_clipping.texcoords[1].v},
+                    {triangle_after_clipping.texcoords[2].u, triangle_after_clipping.texcoords[2].v},
+                },
                 .color = triangle_color};
 
             // Guardamos el triángulo proyectado en el array de triángulos a renderizar
             // almacenar datos en memoria y borrarlos así es muy cpu dependiente, gasta mucho
             //array_push(triangles_to_render, projected_triangle);
             // mil veces mejor hacerlo en memoria reservada
-            if (num_triangles_to_render < MAX_TRIANGLES_PER_MESH)
+            if (num_triangles_to_render < MAX_TRIANGLES)
             {
-                triangles_to_render[num_triangles_to_render] = triangle_to_render;
-                num_triangles_to_render++;
+                triangles_to_render[num_triangles_to_render++] = triangle_to_render;
             }
         }
     }
@@ -360,8 +367,7 @@ void render(void)
         triangle_t triangle = triangles_to_render[i];
 
         // Draw filled triangle
-        if (render_method == RENDER_FILL_TRIANGLE ||
-            render_method == RENDER_FILL_TRIANGLE_WIRE)
+        if (render_method == RENDER_FILL_TRIANGLE || render_method == RENDER_FILL_TRIANGLE_WIRE)
         {
             draw_filled_triangle(
                 triangle.points[0].x, triangle.points[0].y, triangle.points[0].z, triangle.points[0].w, // vertex A
@@ -371,8 +377,7 @@ void render(void)
         }
 
         // Draw textured triangle
-        if (render_method == RENDER_TEXTURED ||
-            render_method == RENDER_TEXTURED_WIRE)
+        if (render_method == RENDER_TEXTURED || render_method == RENDER_TEXTURED_WIRE)
         {
             draw_textured_triangle(
                 triangle.points[0].x, triangle.points[0].y, triangle.points[0].z, triangle.points[0].w, triangle.texcoords[0].u, triangle.texcoords[0].v, // vertex A
@@ -382,10 +387,7 @@ void render(void)
         }
 
         // Draw triangle wireframe
-        if (render_method == RENDER_WIRE ||
-            render_method == RENDER_WIRE_VERTEX ||
-            render_method == RENDER_FILL_TRIANGLE_WIRE ||
-            render_method == RENDER_TEXTURED_WIRE)
+        if (render_method == RENDER_WIRE || render_method == RENDER_WIRE_VERTEX || render_method == RENDER_FILL_TRIANGLE_WIRE || render_method == RENDER_TEXTURED_WIRE)
         {
             draw_triangle(
                 triangle.points[0].x, triangle.points[0].y, // vertex A
@@ -394,7 +396,7 @@ void render(void)
                 0xFFFFFFFF);
         }
 
-        // // Draw triangle vertex points
+        // Draw triangle vertex points
         if (render_method == RENDER_WIRE_VERTEX)
         {
             draw_rect(triangle.points[0].x - 3, triangle.points[0].y - 3, 6, 6, 0xFF0000FF); // vertex A

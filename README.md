@@ -11,6 +11,8 @@ Experimental 3d engine programmed with C language with learning purposes.
 
 <div align="center"><img src="/docs/demo_04.gif" width="500px"/></div>
 
+<div align="center"><img src="/docs/demo_05.gif" width="500px"/></div>
+
 ## Temas de estudio
 
 - Buffer de color ✅
@@ -32,6 +34,6 @@ Experimental 3d engine programmed with C language with learning purposes.
 - Z-Buffer ✅
 - Cámara LookAt ✅
 - Cámara FPS ✅
-- Clipping 👷
-- Refactorización
+- Clipping ✅
+- Refactorización 👷
 - Múltiples mallas

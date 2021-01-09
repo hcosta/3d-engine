@@ -65,10 +65,11 @@ void init_frustum_planes(float fov_x, float fov_y, float z_near, float z_far)
     frustum_planes[FAR_FRUSTUM_PLANE].normal.z = -1;
 }
 
-polygon_t polygon_from_triangle(vec3_t v0, vec3_t v1, vec3_t v2)
+polygon_t polygon_from_triangle(vec3_t v0, vec3_t v1, vec3_t v2, tex2_t t0, tex2_t t1, tex2_t t2)
 {
     polygon_t polygon = {
         .vertices = {v0, v1, v2},
+        .texcoords = {t0, t1, t2},
         .num_vertices = 3};
     return polygon;
 }
@@ -81,11 +82,26 @@ void triangles_from_polygon(polygon_t *polygon, triangle_t triangles[], int *num
         int index1 = i + 1;
         int index2 = i + 2;
 
+        // Cargamos los vértices
         triangles[i].points[0] = vec4_from_vec3(polygon->vertices[index0]);
         triangles[i].points[1] = vec4_from_vec3(polygon->vertices[index1]);
         triangles[i].points[2] = vec4_from_vec3(polygon->vertices[index2]);
+
+        // Cargamos las texcoords
+        triangles[i].texcoords[0] = polygon->texcoords[index0];
+        triangles[i].texcoords[1] = polygon->texcoords[index1];
+        triangles[i].texcoords[2] = polygon->texcoords[index2];
     }
     *num_triangles = polygon->num_vertices - 2;
+}
+
+// Interpolación lineal
+// si t es 0 retorna a
+// si t es 1 retorna b
+// si es un valor entre 0 y 1 busca el valor entre a y b
+float float_lerp(float a, float b, float t)
+{
+    return a + t * (b - a);
 }
 
 void clip_polygon_against_plane(polygon_t *polygon, int plane)
@@ -95,11 +111,16 @@ void clip_polygon_against_plane(polygon_t *polygon, int plane)
 
     // Declare a static array of inside vertices that will be part of the final polygon returned via parameter
     vec3_t inside_vertices[MAX_NUM_POLY_VERTICES];
+    tex2_t inside_texcoords[MAX_NUM_POLY_VERTICES];
     int num_inside_vertices = 0;
 
-    // Start the current vertex with the first polygon vertex, and the previous with the last polygon vertex
+    // Start the current vertex with the first polygon vertex and texture coordinate
     vec3_t *current_vertex = &polygon->vertices[0];
+    tex2_t *current_texcoord = &polygon->texcoords[0];
+
+    // Continue with the previous with the last polygon vertex and texture coordinate
     vec3_t *previous_vertex = &polygon->vertices[polygon->num_vertices - 1];
+    tex2_t *previous_texcoord = &polygon->texcoords[polygon->num_vertices - 1];
 
     // Calculate the dot product of the current and previous vertex
     float current_dot = 0;
@@ -115,14 +136,31 @@ void clip_polygon_against_plane(polygon_t *polygon, int plane)
         {
             // Find the interpolation factor t
             float t = previous_dot / (previous_dot - current_dot);
-            // Calculate the intersection point I = Q1 + t(Q2-Q1)
-            vec3_t intersection_point = vec3_clone(current_vertex);              // I=Qc
-            intersection_point = vec3_sub(intersection_point, *previous_vertex); // I=(Qc-Qp)
-            intersection_point = vec3_mul(intersection_point, t);                // I=t(Qc-Qp)
-            intersection_point = vec3_add(intersection_point, *previous_vertex); // I=Qp+t(Qc-Qp)
+            // Calculate the intersection point I=Q1+t(Q2-Q1)
+
+            // vec3_t intersection_point = vec3_clone(current_vertex);              // I=Qc
+            // intersection_point = vec3_sub(intersection_point, *previous_vertex); // I=(Qc-Qp)
+            // intersection_point = vec3_mul(intersection_point, t);                // I=t(Qc-Qp)
+            // intersection_point = vec3_add(intersection_point, *previous_vertex); // I=Qp+t(Qc-Qp)
+
+            // Lo mismo que antes usando interpolación lineal
+            vec3_t intersection_point = {
+                .x = float_lerp(previous_vertex->x, current_vertex->x, t),
+                .y = float_lerp(previous_vertex->y, current_vertex->y, t),
+                .z = float_lerp(previous_vertex->z, current_vertex->z, t),
+            };
+
+            // Usamos la interpolación lineal (lerp) para conseguir las coordnadas interpoladas de U y V
+            tex2_t interpolated_texcoord = {
+                .u = float_lerp(previous_texcoord->u, current_texcoord->u, t),
+                .v = float_lerp(previous_texcoord->v, current_texcoord->v, t),
+            };
 
             // Insert the intersection point to the list of "inside vertices"
             inside_vertices[num_inside_vertices] = vec3_clone(&intersection_point);
+
+            // Insert the inteprolated texture to the list of "inside texcoords"
+            inside_texcoords[num_inside_vertices] = tex2_clone(&interpolated_texcoord);
             num_inside_vertices++;
         }
 
@@ -131,19 +169,26 @@ void clip_polygon_against_plane(polygon_t *polygon, int plane)
         {
             // Insert the current vertex to the list of "inside vertices"
             inside_vertices[num_inside_vertices] = vec3_clone(current_vertex);
+
+            // Insert the current texcoord to the list of "inside texcoords"
+            inside_texcoords[num_inside_vertices] = tex2_clone(current_texcoord);
+
             num_inside_vertices++;
         }
 
-        // Move to the next vertex
+        // Move to the next vertex and texcoord
         previous_dot = current_dot;
         previous_vertex = current_vertex;
+        previous_texcoord = current_texcoord;
         current_vertex++;
+        current_texcoord++;
     }
 
-    // At the end, copy the list of inside vertices into the destination polygon (out parameter)
+    // At the end, copy the list of inside vertices and texcoords into the destination polygon (out parameter)
     for (int i = 0; i < num_inside_vertices; i++)
     {
         polygon->vertices[i] = vec3_clone(&inside_vertices[i]);
+        polygon->texcoords[i] = tex2_clone(&inside_texcoords[i]);
     }
     polygon->num_vertices = num_inside_vertices;
 }

@@ -3,6 +3,15 @@
 #include "swap.h"
 #include <stdint.h>
 
+int int_crop(int num, int min, int max)
+{
+    if (num < min)
+        return min;
+    else if (num > max)
+        return max;
+    return num;
+}
+
 void draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color)
 {
     draw_line(x0, y0, x1, y1, color);
@@ -157,8 +166,10 @@ vec3_t barycentric_weights(vec2_t a, vec2_t b, vec2_t c, vec2_t p)
     return weights;
 }
 
-// Esta función es para dibujar el pixel texturizado en la posición x,y usando interpolación
-void draw_texel(
+///////////////////////////////////////////////////////////////////////////////
+// Function to draw the textured pixel at position (x,y) using depth interpolation
+///////////////////////////////////////////////////////////////////////////////
+void draw_triangle_texel(
     int x, int y, uint32_t *texture,
     vec4_t point_a, vec4_t point_b, vec4_t point_c,
     tex2_t a_uv, tex2_t b_uv, tex2_t c_uv)
@@ -167,49 +178,56 @@ void draw_texel(
     vec2_t a = vec2_from_vec4(point_a);
     vec2_t b = vec2_from_vec4(point_b);
     vec2_t c = vec2_from_vec4(point_c);
+
     vec3_t weights = barycentric_weights(a, b, c, p);
 
-    float alpha = weights.x; // en este contexto usamos el vector3
+    float alpha = weights.x;
     float beta = weights.y;
     float gamma = weights.z;
 
-    // Primera protección
-    const float EPSILON = 0.00001;
+    // Check if the values of alpha beta and gamma are valid
+    const float EPSILON = 0.000001;
     if (alpha < -EPSILON || beta < -EPSILON || gamma < -EPSILON)
         return;
 
-    // Variables para almacenar valores interpolados de U, V y 1/W para el píxel actual
+    // Variables to store the interpolated values of U, V, and also 1/w for the current pixel
     float interpolated_u;
     float interpolated_v;
     float interpolated_reciprocal_w;
 
-    // Realizamos la interpolaciones de todos los valores U/w y V/w usando masas baricéntricas y el factor de 1/w
+    // Perform the interpolation of all U/w and V/w values using barycentric weights and a factor of 1/w
     interpolated_u = (a_uv.u / point_a.w) * alpha + (b_uv.u / point_b.w) * beta + (c_uv.u / point_c.w) * gamma;
     interpolated_v = (a_uv.v / point_a.w) * alpha + (b_uv.v / point_b.w) * beta + (c_uv.v / point_c.w) * gamma;
 
-    // También voy a interpolar el valor de 1/w para el pixel actual
+    // Also interpolate the value of 1/w for the current pixel
     interpolated_reciprocal_w = (1 / point_a.w) * alpha + (1 / point_b.w) * beta + (1 / point_c.w) * gamma;
 
-    // Ahora podemos dividir de vuelta ambos valores interpolados por 1/w
+    // Now we can divide back both interpolated values by 1/w
     interpolated_u /= interpolated_reciprocal_w;
     interpolated_v /= interpolated_reciprocal_w;
 
-    // Mapeamos la coordenada UV al alto y ancho de la textura completa
-    int tex_x = (int)abs((interpolated_u * texture_width)) % texture_width;
-    int tex_y = (int)abs((interpolated_v * texture_height)) % texture_height;
+    // Map the UV coordinate to the full texture width and height
+    int tex_x = abs((int)(interpolated_u * texture_width)) % texture_width;
+    int tex_y = abs((int)(interpolated_v * texture_height)) % texture_height;
 
-    // Ajustamos 1/w para que los píxeles más cercanos a la cámara tengamos un valor menor
+    // Adjust 1/w so the pixels that are closer to the camera have smaller values
     interpolated_reciprocal_w = 1.0 - interpolated_reciprocal_w;
 
-    // Solo dibujaremos el pixel si el valor de la profunidad es menor al que había anteriormente en el z-buffer
-    if (interpolated_reciprocal_w < z_buffer[(window_width * y) + x])
+    // Y ESTO ES MIO: SOLO DIBUJAR EL PIXEL SI ESTA DENTRO DE LA PANTALLA: 0 > pixel > size
+    int pixel_position = (window_width * y) + x;
+    int screen_pixels = window_width * window_height;
+    if (pixel_position > 0 && pixel_position <= screen_pixels)
     {
-        int tex_index = ((texture_width * tex_y) + tex_x) % (texture_width * texture_height);
-        //draw_pixel(x, y, texture[(texture_width * tex_y) * tex_x]);
-        draw_pixel(x, y, texture[tex_index]);
 
-        // Actualizamos el z-buffer con el valor 1/w para el pixel actual
-        z_buffer[(window_width * y) + x] = interpolated_reciprocal_w;
+        // Only draw the pixel if the depth value is less than the one previously stored in the z-buffer
+        if (interpolated_reciprocal_w < z_buffer[(window_width * y) + x])
+        {
+            // Draw a pixel at position (x,y) with the color that comes from the mapped texture
+            draw_pixel(x, y, texture[(texture_width * tex_y) + tex_x]);
+
+            // Update the z-buffer value with the 1/w of this current pixel
+            z_buffer[(window_width * y) + x] = interpolated_reciprocal_w;
+        }
     }
 }
 
@@ -239,6 +257,11 @@ void draw_triangle_pixel(
 
     // Ajustamos 1/w para que los píxeles más cercanos a la cámara tengamos un valor menor
     interpolated_reciprocal_w = 1.0 - interpolated_reciprocal_w;
+
+    // Check if the drawing position is inside screen
+    // Margenes positivos -1 por que ese es el borde
+    x = int_crop(x, 0, window_width);
+    y = int_crop(y, 0, window_height);
 
     // Solo dibujaremos el pixel si el valor de la profunidad es menor al que había anteriormente en el z-buffer
     if (interpolated_reciprocal_w < z_buffer[(window_width * y) + x])
@@ -327,7 +350,7 @@ void draw_textured_triangle(
             for (int x = x_start; x <= x_end; x++)
             {
                 // Dibujamos el texel de la sección pertinente interpolado
-                draw_texel(x, y, texture, point_a, point_b, point_c, a_uv, b_uv, c_uv);
+                draw_triangle_texel(x, y, texture, point_a, point_b, point_c, a_uv, b_uv, c_uv);
             }
         }
     }
@@ -353,7 +376,7 @@ void draw_textured_triangle(
 
             for (int x = x_start; x <= x_end; x++)
                 // Dibujamos el texel de la sección pertinente interpolado
-                draw_texel(x, y, texture, point_a, point_b, point_c, a_uv, b_uv, c_uv);
+                draw_triangle_texel(x, y, texture, point_a, point_b, point_c, a_uv, b_uv, c_uv);
         }
     }
 }
@@ -422,5 +445,58 @@ void fill_flat_top_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint
         // Decrementamos (al subir) las x en cada scanline
         x_start -= inv_slope_1;
         x_end -= inv_slope_2;
+    }
+}
+
+// Esta función es para dibujar el pixel texturizado en la posición x,y usando interpolación
+void draw_texel(int x, int y, uint32_t *texture, vec4_t point_a, vec4_t point_b, vec4_t point_c, tex2_t a_uv, tex2_t b_uv, tex2_t c_uv)
+{
+    vec2_t p = {x, y};
+    vec2_t a = vec2_from_vec4(point_a);
+    vec2_t b = vec2_from_vec4(point_b);
+    vec2_t c = vec2_from_vec4(point_c);
+    vec3_t weights = barycentric_weights(a, b, c, p);
+
+    float alpha = weights.x; // en este contexto usamos el vector3
+    float beta = weights.y;
+    float gamma = weights.z;
+
+    // Primera protección
+    const float EPSILON = 0.00001;
+    if (alpha < -EPSILON || beta < -EPSILON || gamma < -EPSILON)
+        return;
+
+    // Variables para almacenar valores interpolados de U, V y 1/W para el píxel actual
+    float interpolated_u;
+    float interpolated_v;
+    float interpolated_reciprocal_w;
+
+    // Realizamos la interpolaciones de todos los valores U/w y V/w usando masas baricéntricas y el factor de 1/w
+    interpolated_u = (a_uv.u / point_a.w) * alpha + (b_uv.u / point_b.w) * beta + (c_uv.u / point_c.w) * gamma;
+    interpolated_v = (a_uv.v / point_a.w) * alpha + (b_uv.v / point_b.w) * beta + (c_uv.v / point_c.w) * gamma;
+
+    // También voy a interpolar el valor de 1/w para el pixel actual
+    interpolated_reciprocal_w = (1 / point_a.w) * alpha + (1 / point_b.w) * beta + (1 / point_c.w) * gamma;
+
+    // Ahora podemos dividir de vuelta ambos valores interpolados por 1/w
+    interpolated_u /= interpolated_reciprocal_w;
+    interpolated_v /= interpolated_reciprocal_w;
+
+    // Mapeamos la coordenada UV al alto y ancho de la textura completa
+    int tex_x = (int)abs((interpolated_u * texture_width)) % texture_width;
+    int tex_y = (int)abs((interpolated_v * texture_height)) % texture_height;
+
+    // Ajustamos 1/w para que los píxeles más cercanos a la cámara tengamos un valor menor
+    interpolated_reciprocal_w = 1.0 - interpolated_reciprocal_w;
+
+    // Solo dibujaremos el pixel si el valor de la profunidad es menor al que había anteriormente en el z-buffer
+    if (interpolated_reciprocal_w < z_buffer[(window_width * y) + x])
+    {
+        int tex_index = ((texture_width * tex_y) + tex_x) % (texture_width * texture_height);
+        //draw_pixel(x, y, texture[(texture_width * tex_y) * tex_x]);
+        draw_pixel(x, y, texture[tex_index]);
+
+        // Actualizamos el z-buffer con el valor 1/w para el pixel actual
+        z_buffer[(window_width * y) + x] = interpolated_reciprocal_w;
     }
 }
