@@ -57,14 +57,16 @@ void setup(void)
             window_height);
 
         // Inicilizamos la matrix de projección de la perspectiva
-        float fov = M_PI / 3.0; // esto es lo mismo que 180/3, o 60deg (en radianos)
-        float aspect = (float)window_height / (float)window_width;
+        float aspect_x = (float)window_width / (float)window_height;
+        float aspect_y = (float)window_height / (float)window_width;
+        float fov_y = M_PI / 3.0; // esto es lo mismo que 180/3, o 60deg (en radianos)
+        float fov_x = atan(tan(fov_y / 2) * aspect_x) * 2;
         float z_near = 0.1;
         float z_far = 100.0;
-        proj_matrix = mat4_make_perspective(fov, aspect, z_near, z_far);
+        proj_matrix = mat4_make_perspective(fov_y, aspect_y, z_near, z_far);
 
         // Inicializamos los planos del frustum con un punto a y una normal a
-        init_frustum_planes(fov, z_near, z_far);
+        init_frustum_planes(fov_x, fov_y, z_near, z_far);
 
         // Carga los valores del cubo en la estructura de mallas
         // load_cube_mesh_data();
@@ -83,8 +85,29 @@ void setup(void)
 void process_input(void)
 {
     SDL_Event event;
-    SDL_PollEvent(&event);
 
+    const uint8_t *keystates = SDL_GetKeyboardState(NULL);
+
+    if (keystates[SDL_SCANCODE_W]) // move up
+        camera.position.y -= 1.0 * delta_time;
+    if (keystates[SDL_SCANCODE_S]) // move down
+        camera.position.y += 1.0 * delta_time;
+    if (keystates[SDL_SCANCODE_A]) // rotation radians/sec
+        camera.yaw += 0.25 * delta_time;
+    if (keystates[SDL_SCANCODE_D]) // rotation radians/secX
+        camera.yaw -= 0.25 * delta_time;
+    if (keystates[SDL_SCANCODE_UP]) // forward
+    {
+        camera.forward_velocity = vec3_mul(camera.direction, 1.5 * delta_time);
+        camera.position = vec3_add(camera.position, camera.forward_velocity);
+    }
+    if (keystates[SDL_SCANCODE_DOWN]) // backward
+    {
+        camera.forward_velocity = vec3_mul(camera.direction, 1.5 * delta_time);
+        camera.position = vec3_sub(camera.position, camera.forward_velocity);
+    }
+
+    SDL_PollEvent(&event);
     switch (event.type)
     {
     case SDL_QUIT:
@@ -109,24 +132,6 @@ void process_input(void)
             cull_method = CULL_BACKFACE;
         if (event.key.keysym.sym == SDLK_x) // we should disable the back-face culling
             cull_method = CULL_NONE;
-        if (event.key.keysym.sym == SDLK_UP) // move up
-            camera.position.y -= 3.0 * delta_time;
-        if (event.key.keysym.sym == SDLK_DOWN) // move down
-            camera.position.y += 3.0 * delta_time;
-        if (event.key.keysym.sym == SDLK_a) // rotation radians/sec
-            camera.yaw -= 1.0 * delta_time;
-        if (event.key.keysym.sym == SDLK_d) // rotation radians/secX
-            camera.yaw += 1.0 * delta_time;
-        if (event.key.keysym.sym == SDLK_w) // forward
-        {
-            camera.forward_velocity = vec3_mul(camera.direction, 5.0 * delta_time);
-            camera.position = vec3_add(camera.position, camera.forward_velocity);
-        }
-        if (event.key.keysym.sym == SDLK_s) // backward
-        {
-            camera.forward_velocity = vec3_mul(camera.direction, 5.0 * delta_time);
-            camera.position = vec3_sub(camera.position, camera.forward_velocity);
-        }
         break;
     }
 }
@@ -199,8 +204,6 @@ void update(void)
 
     for (int i = 0; i < num_faces; i++)
     {
-        if (i != 4)
-            continue;
 
         face_t mesh_face = mesh.faces[i];
 
@@ -277,60 +280,71 @@ void update(void)
 
         // Clipping!!
         // Creamos un polígono a partir del triángulo original transformado
-        polygon_t polygon = create_polygon_from_triangle(
+        polygon_t polygon = polygon_from_triangle(
             vec3_from_vec4(transformed_vertices[0]),
             vec3_from_vec4(transformed_vertices[1]),
             vec3_from_vec4(transformed_vertices[2]));
 
         // Clipeamos el polígono y retornmos el nuevo polígono con potenciales nuevos vértices
         clip_polygon(&polygon);
+        //printf("%d\n", polygon.num_vertices);
 
-        // TODO: Después del clipping tenemos que romper el poligono en triángulos
+        // Después del clipping tenemos que romper el poligono en triángulos
+        triangle_t triangles_after_clipping[MAX_NUM_POLY_TRIANGLES];
+        int num_triangles_after_clipping = 0;
 
-        // PROYECCIONES: Iteramos los 3 vértices de la cara actual
-        vec4_t projected_points[3];
+        triangles_from_polygon(&polygon, triangles_after_clipping, &num_triangles_after_clipping);
 
-        for (int j = 0; j < 3; j++)
+        // Iteramos todos los triángulos ensamblados después del clipping
+        for (int t = 0; t < num_triangles_after_clipping; t++)
         {
-            // Proyectamos el vértice
-            projected_points[j] = mat4_mul_vec4_project(proj_matrix, transformed_vertices[j]);
+            triangle_t triangle_after_clipping = triangles_after_clipping[t];
 
-            // Escalamos en la vista
-            projected_points[j].x *= (window_width / 2.0);
-            projected_points[j].y *= (window_height / 2.0);
+            // PROYECCIONES: Iteramos los 3 vértices de la cara actual
+            vec4_t projected_points[3];
 
-            // Invertimos los valores 'y' debido a los valores invertidos de la pantalla
-            // Figura 34 valores invertidos.png
-            projected_points[j].y *= -1;
+            for (int j = 0; j < 3; j++)
+            {
+                // Proyectamos el vértice
+                projected_points[j] = mat4_mul_vec4_project(proj_matrix, triangle_after_clipping.points[j]);
 
-            // Escalamos y trasladamos los puntos proyectados al centro de la pantalla
-            projected_points[j].x += (window_width / 2.0);
-            projected_points[j].y += (window_height / 2.0);
-        }
+                // Escalamos en la vista
+                projected_points[j].x *= (window_width / 2.0);
+                projected_points[j].y *= (window_height / 2.0);
 
-        // Calculamos la intensidad del sombreado basándonos en cuán alineados están la normal de la cara del triángulo y la inversa de la luz (lo negamos por lo de que la profundidad va hacia dentro en nuestro modelo, y en cambio la luz se refleja hacia fuera a nuestra cámara, por eso si no lo negamos se nos oscurece al revés)
-        float light_intensity_factor = -vec3_dot(normal, light.direction);
+                // Invertimos los valores 'y' debido a los valores invertidos de la pantalla
+                // Figura 34 valores invertidos.png
+                projected_points[j].y *= -1;
 
-        // Calculamos el color del triángulo basados en el ángulo de la luz
-        uint32_t triangle_color = light_apply_intensity(mesh_face.color, light_intensity_factor);
+                // Escalamos y trasladamos los puntos proyectados al centro de la pantalla
+                projected_points[j].x += (window_width / 2.0);
+                projected_points[j].y += (window_height / 2.0);
+            }
 
-        triangle_t projected_triangle = {
-            .points = {
-                {projected_points[0].x, projected_points[0].y, projected_points[0].z, projected_points[0].w},
-                {projected_points[1].x, projected_points[1].y, projected_points[1].z, projected_points[1].w},
-                {projected_points[2].x, projected_points[2].y, projected_points[2].z, projected_points[2].w},
-            },
-            .texcoords = {{mesh_face.a_uv.u, mesh_face.a_uv.v}, {mesh_face.b_uv.u, mesh_face.b_uv.v}, {mesh_face.c_uv.u, mesh_face.c_uv.v}},
-            .color = triangle_color};
+            // Calculamos la intensidad del sombreado basándonos en cuán alineados están la normal de la cara del triángulo y la inversa de la luz (lo negamos por lo de que la profundidad va hacia dentro en nuestro modelo, y en cambio la luz se refleja hacia fuera a nuestra cámara, por eso si no lo negamos se nos oscurece al revés)
+            float light_intensity_factor = -vec3_dot(normal, light.direction);
 
-        // Guardamos el triángulo proyectado en el array de triángulos a renderizar
-        // almacenar datos en memoria y borrarlos así es muy cpu dependiente, gasta mucho
-        //array_push(triangles_to_render, projected_triangle);
-        // mil veces mejor hacerlo en memoria reservada
-        if (num_triangles_to_render < MAX_TRIANGLES_PER_MESH)
-        {
-            triangles_to_render[num_triangles_to_render] = projected_triangle;
-            num_triangles_to_render++;
+            // Calculamos el color del triángulo basados en el ángulo de la luz
+            uint32_t triangle_color = light_apply_intensity(mesh_face.color, light_intensity_factor);
+
+            triangle_t triangle_to_render = {
+                .points = {
+                    {projected_points[0].x, projected_points[0].y, projected_points[0].z, projected_points[0].w},
+                    {projected_points[1].x, projected_points[1].y, projected_points[1].z, projected_points[1].w},
+                    {projected_points[2].x, projected_points[2].y, projected_points[2].z, projected_points[2].w},
+                },
+                .texcoords = {{mesh_face.a_uv.u, mesh_face.a_uv.v}, {mesh_face.b_uv.u, mesh_face.b_uv.v}, {mesh_face.c_uv.u, mesh_face.c_uv.v}},
+                .color = triangle_color};
+
+            // Guardamos el triángulo proyectado en el array de triángulos a renderizar
+            // almacenar datos en memoria y borrarlos así es muy cpu dependiente, gasta mucho
+            //array_push(triangles_to_render, projected_triangle);
+            // mil veces mejor hacerlo en memoria reservada
+            if (num_triangles_to_render < MAX_TRIANGLES_PER_MESH)
+            {
+                triangles_to_render[num_triangles_to_render] = triangle_to_render;
+                num_triangles_to_render++;
+            }
         }
     }
 }
