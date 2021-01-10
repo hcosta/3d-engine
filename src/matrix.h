@@ -4,7 +4,7 @@
 #include <math.h>
 #include "vector.h"
 
-typedef struct
+typedef struct mat4_t
 {
     float m[4][4];
 } mat4_t;

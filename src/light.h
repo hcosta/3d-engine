@@ -4,7 +4,7 @@
 #include "vector.h"
 #include <stdint.h>
 
-typedef struct
+typedef struct light_t
 {
     vec3_t direction;
 } light_t;

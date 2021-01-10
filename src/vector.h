@@ -1,17 +1,17 @@
 #ifndef VECTOR_H
 #define VECTOR_H
 
-typedef struct
+typedef struct vec2_t
 {
     float x, y;
 } vec2_t;
 
-typedef struct
+typedef struct vec3_t
 {
     float x, y, z;
 } vec3_t;
 
-typedef struct
+typedef struct vec4_t
 {
     float x, y, z, w;
 } vec4_t;

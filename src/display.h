@@ -9,7 +9,7 @@
 #include <SDL2/SDL.h>
 
 // Fotogramas que vamos a forzar por segundo
-#define FPS 60
+#define FPS 30
 
 // Cuantos milisegundos deben pasar entre cada fotograma
 #define FRAME_TARGET_TIME (1000 / FPS)

@@ -1,17 +1,18 @@
 # 3d-engine
 
-Experimental 3d engine programmed with C language with learning purposes.
+Motor 3D experimental programado en C y SDL desde cero con fines puramente académicos.
 
 ## Demos
 
 <div align="center"><img src="/docs/demo_01.gif" width="500px"/></div>
 
 <div align="center"><img src="/docs/demo_02.gif" width="500px"/></div>
-<!--<div align="center"><img src="/docs/demo_03.gif" width="500px"/></div>-->
 
 <div align="center"><img src="/docs/demo_04.gif" width="500px"/></div>
 
 <div align="center"><img src="/docs/demo_05.gif" width="500px"/></div>
+
+<div align="center"><img src="/docs/demo_06.gif" width="500px"/></div>
 
 ## Temas de estudio
 
@@ -35,5 +36,5 @@ Experimental 3d engine programmed with C language with learning purposes.
 - Cámara LookAt ✅
 - Cámara FPS ✅
 - Clipping ✅
+- Múltiples mallas ✅
 - Refactorización ✅
-- Múltiples mallas 👷

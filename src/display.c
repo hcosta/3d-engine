@@ -8,9 +8,9 @@ static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 static SDL_Texture *color_buffer_texture = NULL; // Para el color buffer
 static float *z_buffer = NULL;
-static bool is_fullscreen = true;
-static int window_width = 640;
-static int window_height = 360;
+static bool is_fullscreen = false;
+static int window_width = 1000;
+static int window_height = 500;
 static int render_method = 0;
 static int cull_method = 0;
 
@@ -83,6 +83,7 @@ bool initialize_window(void)
     }
     else
     {
+
         // Crear ventana SDL
         window = SDL_CreateWindow(
             NULL,

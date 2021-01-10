@@ -4,7 +4,7 @@
 #include "vector.h"
 #include "matrix.h"
 
-typedef struct
+typedef struct camera_t
 {
     vec3_t position;
     vec3_t direction;
