@@ -10,11 +10,11 @@
 #include "clipping.h"
 #include "vector.h"
 #include "matrix.h"
+#include "light.h"
 #include "camera.h"
 #include "triangle.h"
-#include "mesh.h"
-#include "light.h"
 #include "texture.h"
+#include "mesh.h"
 
 // Array de triangulos que debo renderizar frame por frame
 #define MAX_TRIANGLES 10000
@@ -25,8 +25,8 @@ int num_triangles_to_render = 0;
 bool is_running = false;
 int previous_frame_time = 0;
 float delta_time = 0;
-char *model_file = "./assets/efa.obj";
-char *texture_file = "./assets/efa.png";
+char *model_file = "./assets/f22.obj";
+char *texture_file = "./assets/f22.png";
 
 // Matrices de transformación globales
 mat4_t proj_matrix;
@@ -37,97 +37,109 @@ mat4_t view_matrix;
 void setup(void)
 {
     // Inicializamos el modo de renderizado y el culling
-    render_method = RENDER_TEXTURED;
-    cull_method = CULL_BACKFACE;
+    set_render_method(RENDER_TEXTURED);
+    set_cull_method(CULL_BACKFACE);
 
-    // Asigno bytes requeridos en memoria para el color buffer y el z-buffer
-    color_buffer = (uint32_t *)malloc(sizeof(uint32_t) * window_width * window_height);
-    z_buffer = (float *)malloc(sizeof(float) * window_width * window_height);
+    // Inicializar la dirección de luz de la escena
+    init_light(vec3_new(0, 0, 1));
+    // Inicilizamos la matrix de projección de la perspectiva
+    float aspect_x = (float)get_window_width() / (float)get_window_height();
+    float aspect_y = (float)get_window_height() / (float)get_window_width();
+    float fov_y = M_PI / 3.0; // esto es lo mismo que 180/3, o 60deg (en radianos)
+    float fov_x = atan(tan(fov_y / 2) * aspect_x) * 2;
+    float z_near = 1.0;
+    float z_far = 12.0;
+    proj_matrix = mat4_make_perspective(fov_y, aspect_y, z_near, z_far);
 
-    // There is a possibility that malloc fails to allocate that number of bytes in memory maybe the
-    // machine does not have enough free memory, if that happens malloc will return a NULL pointer.
-    if (color_buffer != NULL)
-    {
-        // Creo la textura donde copiaremos el color buffer
-        color_buffer_texture = SDL_CreateTexture(
-            renderer,
-            SDL_PIXELFORMAT_RGBA32,
-            SDL_TEXTUREACCESS_STREAMING,
-            window_width,
-            window_height);
+    // Inicializamos los planos del frustum con un punto a y una normal a
+    init_frustum_planes(fov_x, fov_y, z_near, z_far);
 
-        // Inicilizamos la matrix de projección de la perspectiva
-        float aspect_x = (float)window_width / (float)window_height;
-        float aspect_y = (float)window_height / (float)window_width;
-        float fov_y = M_PI / 3.0; // esto es lo mismo que 180/3, o 60deg (en radianos)
-        float fov_x = atan(tan(fov_y / 2) * aspect_x) * 2;
-        float z_near = 0.0001; // esto tiene que ser muy pequeño
-        float z_far = 8.0;
-        proj_matrix = mat4_make_perspective(fov_y, aspect_y, z_near, z_far);
+    // Carga los valores del fichero de mallas
+    load_obj_file_data(model_file);
 
-        // Inicializamos los planos del frustum con un punto a y una normal a
-        init_frustum_planes(fov_x, fov_y, z_near, z_far);
-
-        // Carga los valores del cubo en la estructura de mallas
-        // load_cube_mesh_data();
-        load_obj_file_data(model_file);
-
-        // Cargamos la informacion de la textura desde un PNG externo
-        load_png_texture_data(texture_file);
-    }
+    // Cargamos la informacion de la textura desde un PNG externo
+    load_png_texture_data(texture_file);
 }
 
 void process_input(void)
 {
-
     const uint8_t *keystates = SDL_GetKeyboardState(NULL);
 
-    if (keystates[SDL_SCANCODE_W]) // move up
-        camera.position.y += 1.0 * delta_time;
-    if (keystates[SDL_SCANCODE_S]) // move down
-        camera.position.y -= 1.0 * delta_time;
+    if (keystates[SDL_SCANCODE_W]) // forward
+    {
+        update_camera_forward_velocity(vec3_mul(get_camera_direction(), 1.0 * delta_time));
+        update_camera_position(vec3_add(get_camera_position(), get_camera_forward_velocity()));
+    }
+    if (keystates[SDL_SCANCODE_S]) // backward
+    {
+        update_camera_forward_velocity(vec3_mul(get_camera_direction(), 1.0 * delta_time));
+        update_camera_position(vec3_sub(get_camera_position(), get_camera_forward_velocity()));
+    }
     if (keystates[SDL_SCANCODE_A]) // rotation radians/sec
-        camera.yaw -= 0.25 * delta_time;
+        rotate_camera_yaw(-0.75 * delta_time);
     if (keystates[SDL_SCANCODE_D]) // rotation radians/secX
-        camera.yaw += 0.25 * delta_time;
-    if (keystates[SDL_SCANCODE_UP]) // forward
-    {
-        camera.forward_velocity = vec3_mul(camera.direction, 1.5 * delta_time);
-        camera.position = vec3_add(camera.position, camera.forward_velocity);
-    }
-    if (keystates[SDL_SCANCODE_DOWN]) // backward
-    {
-        camera.forward_velocity = vec3_mul(camera.direction, 1.5 * delta_time);
-        camera.position = vec3_sub(camera.position, camera.forward_velocity);
-    }
+        rotate_camera_yaw(0.75 * delta_time);
+    if (keystates[SDL_SCANCODE_UP]) // move up
+        rotate_camera_pitch(-1.0 * delta_time);
+    if (keystates[SDL_SCANCODE_DOWN]) // move down
+        rotate_camera_pitch(1.0 * delta_time);
 
     SDL_Event event;
-    SDL_PollEvent(&event);
-    switch (event.type)
+    while (SDL_PollEvent(&event))
     {
-    case SDL_QUIT:
-        is_running = false;
-        break;
-    case SDL_KEYDOWN:
-        if (event.key.keysym.sym == SDLK_ESCAPE)
+        switch (event.type)
+        {
+        case SDL_QUIT:
             is_running = false;
-        if (event.key.keysym.sym == SDLK_1) // wireframe and each triangle vertex
-            render_method = RENDER_WIRE_VERTEX;
-        if (event.key.keysym.sym == SDLK_2) // only the wireframe lines
-            render_method = RENDER_WIRE;
-        if (event.key.keysym.sym == SDLK_3) // filled triangles with a solid color
-            render_method = RENDER_FILL_TRIANGLE;
-        if (event.key.keysym.sym == SDLK_4) // filled triangles and wireframe lines
-            render_method = RENDER_FILL_TRIANGLE_WIRE;
-        if (event.key.keysym.sym == SDLK_5) // render triangle texture
-            render_method = RENDER_TEXTURED;
-        if (event.key.keysym.sym == SDLK_6) // render triangle texture and wireframe
-            render_method = RENDER_TEXTURED_WIRE;
-        if (event.key.keysym.sym == SDLK_c) // we should enable back-face culling
-            cull_method = CULL_BACKFACE;
-        if (event.key.keysym.sym == SDLK_x) // we should disable the back-face culling
-            cull_method = CULL_NONE;
-        break;
+            break;
+        case SDL_KEYDOWN:
+            if (event.key.keysym.sym == SDLK_ESCAPE)
+            {
+                is_running = false;
+                break;
+            }
+            if (event.key.keysym.sym == SDLK_1) // wireframe and each triangle vertex
+            {
+                set_render_method(RENDER_WIRE_VERTEX);
+                break;
+            }
+            if (event.key.keysym.sym == SDLK_2) // only the wireframe lines
+            {
+                set_render_method(RENDER_WIRE);
+                break;
+            }
+            if (event.key.keysym.sym == SDLK_3) // filled triangles with a solid color
+            {
+                set_render_method(RENDER_FILL_TRIANGLE);
+                break;
+            }
+            if (event.key.keysym.sym == SDLK_4) // filled triangles and wireframe lines
+            {
+                set_render_method(RENDER_FILL_TRIANGLE_WIRE);
+                break;
+            }
+            if (event.key.keysym.sym == SDLK_5) // render triangle texture
+            {
+                set_render_method(RENDER_TEXTURED);
+                break;
+            }
+            if (event.key.keysym.sym == SDLK_6) // render triangle texture and wireframe
+            {
+                set_render_method(RENDER_TEXTURED_WIRE);
+                break;
+            }
+            if (event.key.keysym.sym == SDLK_c) // we should enable back-face culling
+            {
+                set_cull_method(CULL_BACKFACE);
+                break;
+            }
+            if (event.key.keysym.sym == SDLK_x) // we should disable the back-face culling
+            {
+                set_cull_method(CULL_NONE);
+                break;
+            }
+            break;
+        }
     }
 }
 
@@ -152,9 +164,9 @@ void update(void)
     num_triangles_to_render = 0;
 
     // Cambiamos los valores del mesh scale/rotation en cada frame
-    mesh.rotation.x += 0.1 * delta_time; // 1 pixel por segundo
-    mesh.rotation.y += 0.1 * delta_time;
-    mesh.rotation.z += 0.1 * delta_time;
+    mesh.rotation.x += 0.0 * delta_time; // 1 pixel por segundo
+    mesh.rotation.y += 0.0 * delta_time;
+    mesh.rotation.z += 0.0 * delta_time;
 
     // mesh.scale.x += 0.0 * delta_time;
     // mesh.scale.y += 0.0 * delta_time;
@@ -176,16 +188,17 @@ void update(void)
     // Calculamos la rotación de la nueva cámara FPS y su traslación
 
     // Creamos la matriz de rotación
-    vec3_t target = {0, 0, 1}; //Inicializamos el target mirando el eje-z positivo
-    mat4_t camera_yaw_rotation = mat4_make_rotation_y(camera.yaw);
-    camera.direction = vec3_from_vec4(mat4_mul_vec4(camera_yaw_rotation, vec4_from_vec3(target)));
+    vec3_t target = get_camera_lookat_target(); //Inicializamos el target mirando el eje-z positivo
+    vec3_t up_direction = vec3_new(0, 1, 0);
+    // mat4_t camera_yaw_rotation = mat4_make_rotation_y(camera.yaw);
+    // camera.direction = vec3_from_vec4(mat4_mul_vec4(camera_yaw_rotation, vec4_from_vec3(target)));
 
-    // Offseteamos la posicion de la cámara en la dirección hacia donde ella mira
-    target = vec3_add(camera.position, camera.direction);
-    vec3_t up_direction = {0, 1, 0};
+    // // Offseteamos la posicion de la cámara en la dirección hacia donde ella mira
+    // target = vec3_add(camera.position, camera.direction);
+    // vec3_t up_direction = {0, 1, 0};
 
-    // Creamos la matriz de vista
-    view_matrix = mat4_look_at(camera.position, target, up_direction);
+    // // Creamos la matriz de vista
+    view_matrix = mat4_look_at(get_camera_position(), target, up_direction);
 
     // Crear una matriz de escalado, rotación y traslación que utilizará el multiplicador del mesh vertices
     mat4_t scale_matrix = mat4_make_scale(mesh.scale.x, mesh.scale.y, mesh.scale.z);
@@ -265,7 +278,7 @@ void update(void)
         float dot_normal_camera = vec3_dot(normal, camera_ray);
 
         // 5. Si el triángulo no está alineado con la cámara saltamos la iteración
-        if (cull_method == CULL_BACKFACE)
+        if (is_cull_backface())
         {
             // Backface culling, bypassing triangles that are looking away from the camera
             if (dot_normal_camera < 0)
@@ -317,16 +330,16 @@ void update(void)
                 projected_points[j].y *= -1;
 
                 // Escalamos en la vista
-                projected_points[j].x *= (window_width / 2.0);
-                projected_points[j].y *= (window_height / 2.0);
+                projected_points[j].x *= (get_window_width() / 2.0);
+                projected_points[j].y *= (get_window_height() / 2.0);
 
                 // Trasladamos los puntos proyectados al centro de la pantalla
-                projected_points[j].x += (window_width / 2.0);
-                projected_points[j].y += (window_height / 2.0);
+                projected_points[j].x += (get_window_width() / 2.0);
+                projected_points[j].y += (get_window_height() / 2.0);
             }
 
             // Calculamos la intensidad del sombreado basándonos en cuán alineados están la normal de la cara del triángulo y la inversa de la luz (lo negamos por lo de que la profundidad va hacia dentro en nuestro modelo, y en cambio la luz se refleja hacia fuera a nuestra cámara, por eso si no lo negamos se nos oscurece al revés)
-            float light_intensity_factor = -vec3_dot(normal, light.direction);
+            float light_intensity_factor = -vec3_dot(normal, get_light_direction());
 
             // Calculamos el color del triángulo basados en el ángulo de la luz
             uint32_t triangle_color = light_apply_intensity(mesh_face.color, light_intensity_factor);
@@ -358,6 +371,10 @@ void update(void)
 
 void render(void)
 {
+    // Reseteamos los buffers para preparar el siguiente frame
+    clear_color_buffer(0xFF000000);
+    clear_z_buffer();
+
     // Dibujamos la cuadrícula
     draw_grid();
 
@@ -367,7 +384,7 @@ void render(void)
         triangle_t triangle = triangles_to_render[i];
 
         // Draw filled triangle
-        if (render_method == RENDER_FILL_TRIANGLE || render_method == RENDER_FILL_TRIANGLE_WIRE)
+        if (should_render_filled_triangle())
         {
             draw_filled_triangle(
                 triangle.points[0].x, triangle.points[0].y, triangle.points[0].z, triangle.points[0].w, // vertex A
@@ -377,7 +394,7 @@ void render(void)
         }
 
         // Draw textured triangle
-        if (render_method == RENDER_TEXTURED || render_method == RENDER_TEXTURED_WIRE)
+        if (should_render_textured_triangle())
         {
             draw_textured_triangle(
                 triangle.points[0].x, triangle.points[0].y, triangle.points[0].z, triangle.points[0].w, triangle.texcoords[0].u, triangle.texcoords[0].v, // vertex A
@@ -387,7 +404,7 @@ void render(void)
         }
 
         // Draw triangle wireframe
-        if (render_method == RENDER_WIRE || render_method == RENDER_WIRE_VERTEX || render_method == RENDER_FILL_TRIANGLE_WIRE || render_method == RENDER_TEXTURED_WIRE)
+        if (should_render_wireframe())
         {
             draw_triangle(
                 triangle.points[0].x, triangle.points[0].y, // vertex A
@@ -397,7 +414,7 @@ void render(void)
         }
 
         // Draw triangle vertex points
-        if (render_method == RENDER_WIRE_VERTEX)
+        if (should_render_wire_vertex())
         {
             draw_rect(triangle.points[0].x - 3, triangle.points[0].y - 3, 6, 6, 0xFF0000FF); // vertex A
             draw_rect(triangle.points[1].x - 3, triangle.points[1].y - 3, 6, 6, 0xFF0000FF); // vertex B
@@ -405,16 +422,8 @@ void render(void)
         }
     }
 
-    // Liberamos el array de triángulos en cada frame
-    // Ya no usamos esto, lo desactivamos
-    // array_free(triangles_to_render);
-
     // Copiamos el color buffer a la textura y lo limpiamos
     render_color_buffer();
-    clear_color_buffer(0xFF000000);
-    clear_z_buffer();
-
-    SDL_RenderPresent(renderer);
 }
 
 // Función encargada de liberar la memoria reservada por el programa
@@ -422,8 +431,6 @@ void free_resources(void)
 {
     array_free(mesh.faces);
     array_free(mesh.vertices);
-    free(color_buffer); // Si liberas algo que ya ha sido liberado da un error de memoria
-    free(z_buffer);
     upng_free(png_texture);
 }
 

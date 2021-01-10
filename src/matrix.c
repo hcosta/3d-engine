@@ -112,10 +112,7 @@ mat4_t mat4_mul_mat4(mat4_t a, mat4_t b)
     {
         for (int j = 0; j < 4; j++)
         {
-            m.m[i][j] = a.m[i][0] * b.m[0][j] +
-                        a.m[i][1] * b.m[1][j] +
-                        a.m[i][2] * b.m[2][j] +
-                        a.m[i][3] * b.m[3][j];
+            m.m[i][j] = a.m[i][0] * b.m[0][j] + a.m[i][1] * b.m[1][j] + a.m[i][2] * b.m[2][j] + a.m[i][3] * b.m[3][j];
         }
     }
     return m;
@@ -131,7 +128,7 @@ mat4_t mat4_make_perspective(float fov, float aspect, float znear, float zfar)
     m.m[0][0] = aspect * (1 / tan(fov / 2));
     m.m[1][1] = 1 / tan(fov / 2);
     m.m[2][2] = zfar / (zfar - znear);            // este numero
-    m.m[3][3] = (-zfar * znear) / (zfar - znear); // y este manejan la profundidad Z
+    m.m[2][3] = (-zfar * znear) / (zfar - znear); // y este manejan la profundidad Z
     m.m[3][2] = 1.0;                              // establecemos 1 para almacenar z original
 
     return m;

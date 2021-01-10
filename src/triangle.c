@@ -214,19 +214,19 @@ void draw_triangle_texel(
     interpolated_reciprocal_w = 1.0 - interpolated_reciprocal_w;
 
     // Y ESTO ES MIO: SOLO DIBUJAR EL PIXEL SI ESTA DENTRO DE LA PANTALLA: 0 > pixel > size
-    int pixel_position = (window_width * y) + x;
-    int screen_pixels = window_width * window_height;
+    int pixel_position = (get_window_width() * y) + x;
+    int screen_pixels = get_window_width() * get_window_height();
     if (pixel_position > 0 && pixel_position <= screen_pixels)
     {
 
         // Only draw the pixel if the depth value is less than the one previously stored in the z-buffer
-        if (interpolated_reciprocal_w < z_buffer[(window_width * y) + x])
+        if (interpolated_reciprocal_w < get_zbuffer_at(x, y))
         {
             // Draw a pixel at position (x,y) with the color that comes from the mapped texture
             draw_pixel(x, y, texture[(texture_width * tex_y) + tex_x]);
 
             // Update the z-buffer value with the 1/w of this current pixel
-            z_buffer[(window_width * y) + x] = interpolated_reciprocal_w;
+            update_zbuffer_at(x, y, interpolated_reciprocal_w);
         }
     }
 }
@@ -260,16 +260,16 @@ void draw_triangle_pixel(
 
     // Check if the drawing position is inside screen
     // Margenes positivos -1 por que ese es el borde
-    x = int_crop(x, 0, window_width);
-    y = int_crop(y, 0, window_height);
+    x = int_crop(x, 0, get_window_width());
+    y = int_crop(y, 0, get_window_height());
 
     // Solo dibujaremos el pixel si el valor de la profunidad es menor al que había anteriormente en el z-buffer
-    if (interpolated_reciprocal_w < z_buffer[(window_width * y) + x])
+    if (interpolated_reciprocal_w < get_zbuffer_at(x, y))
     {
         draw_pixel(x, y, color);
 
         // Actualizamos el z-buffer con el valor 1/w para el pixel actual
-        z_buffer[(window_width * y) + x] = interpolated_reciprocal_w;
+        update_zbuffer_at(x, y, interpolated_reciprocal_w);
     }
 }
 
@@ -490,13 +490,13 @@ void draw_texel(int x, int y, uint32_t *texture, vec4_t point_a, vec4_t point_b,
     interpolated_reciprocal_w = 1.0 - interpolated_reciprocal_w;
 
     // Solo dibujaremos el pixel si el valor de la profunidad es menor al que había anteriormente en el z-buffer
-    if (interpolated_reciprocal_w < z_buffer[(window_width * y) + x])
+    if (interpolated_reciprocal_w < get_zbuffer_at(x, y))
     {
         int tex_index = ((texture_width * tex_y) + tex_x) % (texture_width * texture_height);
         //draw_pixel(x, y, texture[(texture_width * tex_y) * tex_x]);
         draw_pixel(x, y, texture[tex_index]);
 
         // Actualizamos el z-buffer con el valor 1/w para el pixel actual
-        z_buffer[(window_width * y) + x] = interpolated_reciprocal_w;
+        update_zbuffer_at(x, y, interpolated_reciprocal_w);
     }
 }
